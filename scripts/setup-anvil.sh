@@ -22,6 +22,8 @@ VERSUS_A=""
 VERSUS_B=""
 INTERACTIVE=false
 STAKEHOLDERS=""
+PERSONAS=()
+MODE_EXPLICIT=false
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -33,6 +35,7 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       MODE="$2"
+      MODE_EXPLICIT=true
       shift 2
       ;;
     --rounds)
@@ -129,6 +132,15 @@ while [[ $# -gt 0 ]]; do
       VERSUS_B="$3"
       shift 3
       ;;
+    --persona)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --persona requires a value (preset name or free-text description)" >&2
+        echo "Presets: security-engineer, startup-cfo, junior-developer, end-user" >&2
+        exit 1
+      fi
+      PERSONAS+=("$2")
+      shift 2
+      ;;
     *)
       QUESTION_PARTS+=("$1")
       shift
@@ -195,6 +207,41 @@ if [[ -n "$STAKEHOLDERS" ]] && [[ "$MODE" != "stakeholders" ]]; then
   exit 1
 fi
 
+# Validate --persona is mutually exclusive with --mode (unless mode was auto-set to analyst)
+PERSONA_COUNT=${#PERSONAS[@]}
+if [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  # Check mutual exclusion: --persona conflicts with explicit --mode
+  if [[ "$MODE_EXPLICIT" == "true" ]]; then
+    echo "Error: --persona and --mode are mutually exclusive. Personas replace the debate mode entirely." >&2
+    exit 1
+  fi
+  # Need at least 2 personas for a debate
+  if [[ "$PERSONA_COUNT" -lt 2 ]]; then
+    echo "Error: --persona requires at least 2 personas for a debate." >&2
+    echo "Usage: /anvil \"topic\" --persona \"persona A\" --persona \"persona B\"" >&2
+    exit 1
+  fi
+  # Resolve preset vs custom persona descriptions
+  PERSONA_DESCRIPTIONS=()
+  PERSONA_NAMES=()
+  for persona in "${PERSONAS[@]}"; do
+    preset_file="$PLUGIN_ROOT/prompts/personas/${persona}.md"
+    if [[ -f "$preset_file" ]]; then
+      PERSONA_DESCRIPTIONS+=("$(cat "$preset_file")")
+      PERSONA_NAMES+=("$persona")
+    else
+      # Free-text persona — use description directly
+      PERSONA_DESCRIPTIONS+=("$persona")
+      PERSONA_NAMES+=("$persona")
+    fi
+  done
+  # --interactive not supported with 3+ personas (rotation has no critic phase)
+  if [[ "$INTERACTIVE" == "true" ]] && [[ "$PERSONA_COUNT" -gt 2 ]]; then
+    echo "Error: --interactive is not supported with 3+ personas. Interactive steering requires the advocate/critic cycle." >&2
+    exit 1
+  fi
+fi
+
 # Validate framework
 if [[ -n "$FRAMEWORK" ]]; then
   case "$FRAMEWORK" in
@@ -206,11 +253,14 @@ if [[ -n "$FRAMEWORK" ]]; then
   esac
 fi
 
-# Validate rounds (skip for stakeholders — rounds = number of stakeholders)
+# Validate rounds (skip for stakeholders/personas — rounds auto-calculated)
 if [[ "$MODE" == "stakeholders" ]]; then
   # Count stakeholders (comma-separated)
   IFS=',' read -ra STAKEHOLDER_LIST <<< "$STAKEHOLDERS"
   ROUNDS=${#STAKEHOLDER_LIST[@]}
+elif [[ "$PERSONA_COUNT" -gt 2 ]]; then
+  # 3+ personas: each gets one round (rotation), then synthesizer
+  ROUNDS=$PERSONA_COUNT
 elif [[ "$ROUNDS" -lt 1 ]] || [[ "$ROUNDS" -gt 5 ]]; then
   echo "Error: --rounds must be between 1 and 5 (got: $ROUNDS)" >&2
   exit 1
@@ -398,6 +448,21 @@ fi
 # Escape question for YAML
 QUESTION_YAML="\"$(yaml_escape "$QUESTION")\""
 
+# Build personas YAML value (pipe-separated for easy parsing)
+PERSONAS_YAML=""
+if [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  PERSONAS_YAML=$(IFS='|'; echo "${PERSONA_NAMES[*]}")
+fi
+
+# Determine initial phase
+if [[ "$MODE" == "stakeholders" ]]; then
+  INITIAL_PHASE="stakeholder"
+elif [[ "$PERSONA_COUNT" -gt 2 ]]; then
+  INITIAL_PHASE="persona"
+else
+  INITIAL_PHASE="advocate"
+fi
+
 # Create state file
 cat > "$ANVIL_STATE_FILE" <<EOF
 ---
@@ -407,7 +472,7 @@ mode: $MODE
 position: $POSITION_YAML
 round: 1
 max_rounds: $ROUNDS
-phase: $( [[ "$MODE" == "stakeholders" ]] && echo "stakeholder" || echo "advocate" )
+phase: $INITIAL_PHASE
 research: $RESEARCH
 framework: $FRAMEWORK
 focus: "$FOCUS"
@@ -417,9 +482,17 @@ versus: $( [[ -n "$VERSUS_A" ]] && echo "true" || echo "false" )
 interactive: $INTERACTIVE
 stakeholders: "$STAKEHOLDERS"
 stakeholder_index: 1
+personas: "$PERSONAS_YAML"
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
+
+# Append persona descriptions to state file body (before any rounds)
+if [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  for i in $(seq 0 $((PERSONA_COUNT - 1))); do
+    printf '\n<!-- persona:%s -->\n%s\n<!-- /persona -->\n' "${PERSONA_NAMES[$i]}" "${PERSONA_DESCRIPTIONS[$i]}" >> "$ANVIL_STATE_FILE"
+  done
+fi
 
 # Append context to state file body (before any rounds)
 if [[ "$HAS_CONTEXT" == "true" ]]; then
@@ -446,10 +519,30 @@ if [[ "$MODE" == "stakeholders" ]]; then
   IFS=',' read -ra STAKEHOLDER_LIST <<< "$STAKEHOLDERS"
   FIRST_STAKEHOLDER=$(printf '%s' "${STAKEHOLDER_LIST[0]}" | sed 's/^ *//;s/ *$//')
   ROLE_PROMPT_INITIAL="You are now embodying the **$FIRST_STAKEHOLDER** perspective. Analyze the question exclusively from this stakeholder's viewpoint."
+elif [[ "$PERSONA_COUNT" -gt 2 ]]; then
+  # 3+ personas: rotation mode, first persona gets Round 1
+  ROLE_PROMPT_INITIAL="# Persona: ${PERSONA_NAMES[0]}
+
+${PERSONA_DESCRIPTIONS[0]}
+
+Argue this question from your perspective. This is persona 1 of $PERSONA_COUNT."
+elif [[ "$PERSONA_COUNT" -eq 2 ]]; then
+  # 2 personas: first persona is the Advocate
+  ROLE_PROMPT_INITIAL="# Persona: ${PERSONA_NAMES[0]}
+
+${PERSONA_DESCRIPTIONS[0]}
+
+You are arguing FOR the proposition from this persona's perspective."
 else
   ROLE_PROMPT_INITIAL=$(cat "$PLUGIN_ROOT/prompts/advocate.md")
 fi
-MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md")
+
+# Read mode prompt (personas don't use mode prompts — the persona IS the mode)
+if [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  MODE_PROMPT="You are operating in **persona debate mode**. Instead of generic Advocate/Critic roles, each side is represented by a specific persona with their own worldview, priorities, and expertise. Argue authentically from your persona's perspective."
+else
+  MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md")
+fi
 
 # Build the initial prompt
 echo ""
@@ -491,6 +584,18 @@ if [[ "$MODE" == "stakeholders" ]]; then
   echo ""
   echo "  The simulation will cycle through:"
   echo "    Stakeholder 1 → Stakeholder 2 → ... → Synthesizer"
+elif [[ "$PERSONA_COUNT" -gt 2 ]]; then
+  echo "  Personas:  ${PERSONA_NAMES[*]}"
+  echo "  Phase:     PERSONA 1 — ${PERSONA_NAMES[0]}"
+  echo ""
+  echo "  The debate will cycle through:"
+  echo "    Persona 1 → Persona 2 → ... → Synthesizer"
+elif [[ "$PERSONA_COUNT" -eq 2 ]]; then
+  echo "  Personas:  ${PERSONA_NAMES[0]} vs ${PERSONA_NAMES[1]}"
+  echo "  Phase:     ADVOCATE (${PERSONA_NAMES[0]}) — Round 1 of $ROUNDS"
+  echo ""
+  echo "  The debate will cycle through:"
+  echo "    ${PERSONA_NAMES[0]} (Advocate) → ${PERSONA_NAMES[1]} (Critic) → ... → Synthesizer"
 else
   echo "  Phase:     ADVOCATE (Round 1 of $ROUNDS)"
   echo ""

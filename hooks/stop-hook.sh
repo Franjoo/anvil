@@ -54,6 +54,14 @@ VERSUS=$(printf '%s\n' "$FRONTMATTER" | grep '^versus:' | sed 's/versus: *//' | 
 INTERACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^interactive:' | sed 's/interactive: *//' | tr -d '\r')
 STAKEHOLDERS=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholders:' | sed 's/stakeholders: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 STAKEHOLDER_INDEX=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholder_index:' | sed 's/stakeholder_index: *//' | tr -d '\r')
+PERSONAS=$(printf '%s\n' "$FRONTMATTER" | grep '^personas:' | sed 's/personas: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+
+# Parse persona names into array
+PERSONA_NAMES=()
+if [[ -n "$PERSONAS" ]]; then
+  IFS='|' read -ra PERSONA_NAMES <<< "$PERSONAS"
+fi
+PERSONA_COUNT=${#PERSONA_NAMES[@]}
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -75,7 +83,7 @@ fi
 
 # Validate phase
 case "$PHASE" in
-  advocate|critic|synthesizer|interactive-pause|stakeholder) ;;
+  advocate|critic|synthesizer|interactive-pause|stakeholder|persona) ;;
   *)
     echo "Warning: Anvil state corrupted (invalid phase: '$PHASE'). Cleaning up." >&2
     rm -f "$ANVIL_STATE_FILE"
@@ -126,6 +134,8 @@ if printf '%s' "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
   if [[ "$PHASE" != "synthesizer" ]]; then
     if [[ "$PHASE" == "stakeholder" ]]; then
       PHASE="stakeholder"
+    elif [[ "$PHASE" == "persona" ]]; then
+      PHASE="persona"
     else
       PHASE="critic"
     fi
@@ -145,6 +155,11 @@ elif [[ "$ORIGINAL_PHASE" == "stakeholder" ]]; then
   SH_IDX=$((ORIGINAL_ROUND - 1))
   SH_NAME=$(printf '%s' "${SH_LIST[$SH_IDX]}" | sed 's/^ *//;s/ *$//')
   printf '\n## Stakeholder %s: %s\n\n%s\n' "$ORIGINAL_ROUND" "$SH_NAME" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
+elif [[ "$ORIGINAL_PHASE" == "persona" ]]; then
+  # For persona rotation mode (3+ personas), label by persona name
+  P_IDX=$((ORIGINAL_ROUND - 1))
+  P_NAME="${PERSONA_NAMES[$P_IDX]}"
+  printf '\n## Persona %s: %s\n\n%s\n' "$ORIGINAL_ROUND" "$P_NAME" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
 elif [[ "$ORIGINAL_PHASE" == "advocate" ]] || [[ "$ORIGINAL_PHASE" == "critic" ]]; then
   # Check if this round heading already exists
   if ! grep -q "^## Round $ORIGINAL_ROUND" "$ANVIL_STATE_FILE"; then
@@ -184,6 +199,16 @@ case "$PHASE" in
     # Stakeholder mode: rotate through stakeholders, then synthesize
     if [[ "$ROUND" -lt "$MAX_ROUNDS" ]]; then
       NEXT_PHASE="stakeholder"
+      NEXT_ROUND=$((ROUND + 1))
+    else
+      NEXT_PHASE="synthesizer"
+      NEXT_ROUND="$ROUND"
+    fi
+    ;;
+  persona)
+    # Persona rotation mode (3+ personas): rotate through, then synthesize
+    if [[ "$ROUND" -lt "$MAX_ROUNDS" ]]; then
+      NEXT_PHASE="persona"
       NEXT_ROUND=$((ROUND + 1))
     else
       NEXT_PHASE="synthesizer"
@@ -230,6 +255,9 @@ case "$PHASE" in
     fi
     if [[ -n "$CONTEXT_SOURCE" ]]; then
       RESULT_HEADER=$(printf '%s\n**Context**: %s' "$RESULT_HEADER" "$CONTEXT_SOURCE")
+    fi
+    if [[ -n "$PERSONAS" ]]; then
+      RESULT_HEADER=$(printf '%s\n**Personas**: %s' "$RESULT_HEADER" "$(echo "$PERSONAS" | tr '|' ', ')")
     fi
     RESULT_HEADER=$(printf '%s\n**Date**: %s' "$RESULT_HEADER" "$TIMESTAMP")
 
@@ -311,13 +339,66 @@ if [[ "$NEXT_PHASE" == "stakeholder" ]]; then
   SH_IDX=$((NEXT_ROUND - 1))
   SH_NAME=$(printf '%s' "${SH_LIST[$SH_IDX]}" | sed 's/^ *//;s/ *$//')
   ROLE_PROMPT="You are now embodying the **$SH_NAME** perspective. Analyze the question exclusively from this stakeholder's viewpoint. This is stakeholder $NEXT_ROUND of ${#SH_LIST[@]}."
+elif [[ "$NEXT_PHASE" == "persona" ]]; then
+  # Persona rotation mode (3+ personas): get persona description from state file
+  P_IDX=$((NEXT_ROUND - 1))
+  P_NAME="${PERSONA_NAMES[$P_IDX]}"
+  # Extract persona description from state file body (stored between <!-- persona:NAME --> markers)
+  P_DESC=$(awk -v name="$P_NAME" '
+    index($0, "<!-- persona:" name " -->") > 0 { found=1; next }
+    /<!-- \/persona -->/ { if(found) exit }
+    found { print }
+  ' "$ANVIL_STATE_FILE")
+  if [[ -z "$P_DESC" ]]; then
+    P_DESC="$P_NAME"
+  fi
+  ROLE_PROMPT="# Persona: $P_NAME
+
+$P_DESC
+
+Argue this question from your perspective. This is persona $NEXT_ROUND of $PERSONA_COUNT."
+elif [[ "$PERSONA_COUNT" -eq 2 ]]; then
+  # 2-persona mode: personas replace advocate/critic role prompts
+  if [[ "$NEXT_PHASE" == "advocate" ]]; then
+    P_NAME="${PERSONA_NAMES[0]}"
+    P_DESC=$(awk -v name="$P_NAME" '
+      index($0, "<!-- persona:" name " -->") > 0 { found=1; next }
+      /<!-- \/persona -->/ { if(found) exit }
+      found { print }
+    ' "$ANVIL_STATE_FILE")
+    if [[ -z "$P_DESC" ]]; then P_DESC="$P_NAME"; fi
+    ROLE_PROMPT="# Persona: $P_NAME
+
+$P_DESC
+
+You are arguing FOR the proposition from this persona's perspective."
+  elif [[ "$NEXT_PHASE" == "critic" ]]; then
+    P_NAME="${PERSONA_NAMES[1]}"
+    P_DESC=$(awk -v name="$P_NAME" '
+      index($0, "<!-- persona:" name " -->") > 0 { found=1; next }
+      /<!-- \/persona -->/ { if(found) exit }
+      found { print }
+    ' "$ANVIL_STATE_FILE")
+    if [[ -z "$P_DESC" ]]; then P_DESC="$P_NAME"; fi
+    ROLE_PROMPT="# Persona: $P_NAME
+
+$P_DESC
+
+You are arguing AGAINST the proposition from this persona's perspective. Challenge the previous persona's arguments."
+  else
+    ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo "")
+  fi
 else
   ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo "")
 fi
 
-# Read mode prompt (synthesizer in stakeholder mode gets analyst tone, not stakeholder embodiment)
+# Read mode prompt
 if [[ "$NEXT_PHASE" == "synthesizer" ]] && [[ "$MODE" == "stakeholders" ]]; then
   MODE_PROMPT="You are synthesizing a **stakeholder simulation**. Do NOT embody any single stakeholder. Instead, analyze where stakeholders aligned, where they conflicted, and what no stakeholder considered."
+elif [[ "$NEXT_PHASE" == "synthesizer" ]] && [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  MODE_PROMPT="You are synthesizing a **persona debate**. Do NOT embody any single persona. Instead, analyze where the personas' perspectives aligned, where they conflicted, and what insights emerge from combining their viewpoints."
+elif [[ "$PERSONA_COUNT" -gt 0 ]]; then
+  MODE_PROMPT="You are operating in **persona debate mode**. Instead of generic Advocate/Critic roles, each side is represented by a specific persona with their own worldview, priorities, and expertise. Argue authentically from your persona's perspective."
 else
   MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo "")
 fi
@@ -420,6 +501,20 @@ $RESEARCH_FOCUS_STAKEHOLDER
 - PREFER researched evidence with real URLs over claims from memory
 
 Perform at least 2-3 targeted searches relevant to this stakeholder's domain and concerns.
+
+If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
+  elif [[ "$NEXT_PHASE" == "persona" ]]; then
+    RESEARCH_BLOCK="
+## Research Mode ENABLED
+
+Before arguing from your persona's perspective, use **WebSearch** to research relevant evidence:
+- Search for real-world data, examples, and evidence that this persona would find compelling
+- Look for information relevant to this persona's domain of expertise and concerns
+- Find specific facts, statistics, or case studies that support your persona's argument
+- Cite your sources inline: [Source Title](URL)
+- PREFER researched evidence with real URLs over claims from memory
+
+Perform at least 2-3 targeted searches relevant to your persona's perspective.
 
 If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
   elif [[ "$NEXT_PHASE" == "synthesizer" ]]; then
@@ -539,6 +634,14 @@ if [[ "$NEXT_PHASE" == "synthesizer" ]]; then
   SYSTEM_MSG="Anvil: SYNTHESIZER phase — produce balanced final analysis"
 elif [[ "$NEXT_PHASE" == "stakeholder" ]]; then
   SYSTEM_MSG="Anvil: STAKEHOLDER phase — $SH_NAME perspective ($NEXT_ROUND of $MAX_ROUNDS)"
+elif [[ "$NEXT_PHASE" == "persona" ]]; then
+  SYSTEM_MSG="Anvil: PERSONA phase — ${PERSONA_NAMES[$((NEXT_ROUND - 1))]} ($NEXT_ROUND of $MAX_ROUNDS)"
+elif [[ "$PERSONA_COUNT" -eq 2 ]]; then
+  if [[ "$NEXT_PHASE" == "advocate" ]]; then
+    SYSTEM_MSG="Anvil: ${PERSONA_NAMES[0]} (ADVOCATE) — Round $NEXT_ROUND of $MAX_ROUNDS"
+  else
+    SYSTEM_MSG="Anvil: ${PERSONA_NAMES[1]} (CRITIC) — Round $NEXT_ROUND of $MAX_ROUNDS"
+  fi
 else
   SYSTEM_MSG="Anvil: $(printf '%s' "$NEXT_PHASE" | tr '[:lower:]' '[:upper:]') phase — Round $NEXT_ROUND of $MAX_ROUNDS"
 fi
