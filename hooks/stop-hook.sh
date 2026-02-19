@@ -51,6 +51,7 @@ FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework
 FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 CONTEXT_SOURCE=$(printf '%s\n' "$FRONTMATTER" | grep '^context_source:' | sed 's/context_source: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 VERSUS=$(printf '%s\n' "$FRONTMATTER" | grep '^versus:' | sed 's/versus: *//' | tr -d '\r')
+INTERACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^interactive:' | sed 's/interactive: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -72,7 +73,7 @@ fi
 
 # Validate phase
 case "$PHASE" in
-  advocate|critic|synthesizer) ;;
+  advocate|critic|synthesizer|interactive-pause) ;;
   *)
     echo "Warning: Anvil state corrupted (invalid phase: '$PHASE'). Cleaning up." >&2
     rm -f "$ANVIL_STATE_FILE"
@@ -127,9 +128,12 @@ if printf '%s' "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
 fi
 
 # Append output to state file under the correct heading (use ORIGINAL phase/round)
+# Skip transcript append for interactive-pause (meta-conversation, not debate content)
 PHASE_UPPER=$(capitalize "$ORIGINAL_PHASE")
 
-if [[ "$ORIGINAL_PHASE" == "advocate" ]] || [[ "$ORIGINAL_PHASE" == "critic" ]]; then
+if [[ "$ORIGINAL_PHASE" == "interactive-pause" ]]; then
+  : # Do not append interactive-pause output to debate transcript
+elif [[ "$ORIGINAL_PHASE" == "advocate" ]] || [[ "$ORIGINAL_PHASE" == "critic" ]]; then
   # Check if this round heading already exists
   if ! grep -q "^## Round $ORIGINAL_ROUND" "$ANVIL_STATE_FILE"; then
     printf '\n## Round %s\n' "$ORIGINAL_ROUND" >> "$ANVIL_STATE_FILE"
@@ -151,11 +155,32 @@ case "$PHASE" in
     ;;
   critic)
     if [[ "$ROUND" -lt "$MAX_ROUNDS" ]]; then
-      NEXT_PHASE="advocate"
-      NEXT_ROUND=$((ROUND + 1))
+      # In interactive mode, pause for user steering between rounds
+      if [[ "$INTERACTIVE" == "true" ]]; then
+        NEXT_PHASE="interactive-pause"
+        NEXT_ROUND="$ROUND"
+      else
+        NEXT_PHASE="advocate"
+        NEXT_ROUND=$((ROUND + 1))
+      fi
     else
       NEXT_PHASE="synthesizer"
       NEXT_ROUND="$ROUND"
+    fi
+    ;;
+  interactive-pause)
+    # Extract steering from the last output
+    STEERING=""
+    if printf '%s' "$LAST_OUTPUT" | grep -q '<anvil-steering>'; then
+      STEERING=$(printf '%s' "$LAST_OUTPUT" | sed -n 's/.*<anvil-steering>\(.*\)<\/anvil-steering>.*/\1/p')
+    fi
+    # Check for skip-to-synthesis
+    if [[ "$STEERING" == "synthesize" ]] || [[ "$STEERING" == "skip" ]]; then
+      NEXT_PHASE="synthesizer"
+      NEXT_ROUND="$ROUND"
+    else
+      NEXT_PHASE="advocate"
+      NEXT_ROUND=$((ROUND + 1))
     fi
     ;;
   synthesizer)
@@ -206,6 +231,56 @@ mv "$TEMP_FILE" "$ANVIL_STATE_FILE"
 
 # --- Construct Next Prompt ---
 
+# Extract the debate transcript so far (everything after second ---)
+TRANSCRIPT_SO_FAR=$(awk '/^---$/{i++; next} i>=2' "$ANVIL_STATE_FILE")
+
+# Handle interactive-pause prompt separately (it's a meta-phase, not a debate phase)
+if [[ "$NEXT_PHASE" == "interactive-pause" ]]; then
+  PAUSE_PROMPT="# Round $ROUND Complete — Interactive Steering
+
+Summarize this round of the debate concisely:
+1. **Advocate's key arguments** this round (2-3 bullet points)
+2. **Critic's key counterarguments** this round (2-3 bullet points)
+3. **Current state**: Which side seems stronger so far?
+
+Then ask the user how they want to steer the next round. Use the AskUserQuestion tool with these options:
+- \"Continue automatically\" — let the debate proceed without steering
+- \"Focus the debate\" — provide a specific angle or constraint for the next round
+- \"Skip to synthesis\" — end the debate early and produce the final analysis
+
+After receiving the user's response, output exactly one of these tags at the END of your response:
+- If the user wants to continue: \`<anvil-steering>none</anvil-steering>\`
+- If the user provides direction: \`<anvil-steering>THEIR DIRECTION HERE</anvil-steering>\`
+- If the user wants synthesis: \`<anvil-steering>synthesize</anvil-steering>\`
+
+## Debate so far
+
+$TRANSCRIPT_SO_FAR"
+
+  SYSTEM_MSG="Anvil: INTERACTIVE PAUSE — Round $ROUND complete, awaiting user steering"
+
+  jq -n \
+    --arg prompt "$PAUSE_PROMPT" \
+    --arg msg "$SYSTEM_MSG" \
+    '{
+      "decision": "block",
+      "reason": $prompt,
+      "systemMessage": $msg
+    }'
+  exit 0
+fi
+
+# If we just came from interactive-pause with steering, inject it
+STEERING_BLOCK=""
+if [[ "$PHASE" == "interactive-pause" ]] && [[ -n "$STEERING" ]] && [[ "$STEERING" != "none" ]]; then
+  STEERING_BLOCK="
+## User Steering Directive
+
+The user has directed the next round to focus on: **$STEERING**
+
+Incorporate this directive into your argument. Address the user's concern directly."
+fi
+
 # Read role prompt
 ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo "")
 
@@ -217,9 +292,6 @@ FRAMEWORK_PROMPT=""
 if [[ "$NEXT_PHASE" == "synthesizer" ]] && [[ -n "$FRAMEWORK" ]]; then
   FRAMEWORK_PROMPT=$(cat "$PLUGIN_ROOT/prompts/frameworks/${FRAMEWORK}.md" 2>/dev/null || echo "")
 fi
-
-# Extract the debate transcript so far (everything after second ---)
-TRANSCRIPT_SO_FAR=$(awk '/^---$/{i++; next} i>=2' "$ANVIL_STATE_FILE")
 
 # Build research instructions if enabled (mode-aware)
 RESEARCH_BLOCK=""
@@ -347,6 +419,12 @@ Evaluate through: $FOCUS_DESCRIPTION"
     FULL_PROMPT="$FULL_PROMPT
 Evaluate exclusively through the lens of: **$FOCUS**"
   fi
+fi
+
+# Inject steering directive from interactive mode
+if [[ -n "$STEERING_BLOCK" ]]; then
+  FULL_PROMPT="$FULL_PROMPT
+$STEERING_BLOCK"
 fi
 
 # Inject versus framing for advocate and critic

@@ -20,6 +20,7 @@ CONTEXT_DIFF=false
 FOLLOW_UP=""
 VERSUS_A=""
 VERSUS_B=""
+INTERACTIVE=false
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -104,6 +105,10 @@ while [[ $# -gt 0 ]]; do
       fi
       FOLLOW_UP="$2"
       shift 2
+      ;;
+    --interactive)
+      INTERACTIVE=true
+      shift
       ;;
     --versus)
       if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
@@ -380,6 +385,7 @@ focus: "$FOCUS"
 context_source: "$CONTEXT_SOURCE"
 follow_up: "$FOLLOW_UP"
 versus: $( [[ -n "$VERSUS_A" ]] && echo "true" || echo "false" )
+interactive: $INTERACTIVE
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -433,6 +439,9 @@ if [[ -n "$FOLLOW_UP" ]]; then
 fi
 if [[ -n "$VERSUS_A" ]]; then
   echo "  Versus:    $VERSUS_A vs $VERSUS_B"
+fi
+if [[ "$INTERACTIVE" == "true" ]]; then
+  echo "  Interactive: ENABLED (you can steer between rounds)"
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"
