@@ -95,15 +95,20 @@ fi
 # Create .claude directory if needed
 mkdir -p .claude
 
+# Escape strings for YAML double-quoted values (backslash, then double-quote)
+yaml_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
 # Format position for YAML (null if empty)
 if [[ -n "$POSITION" ]]; then
-  POSITION_YAML="\"$POSITION\""
+  POSITION_YAML="\"$(yaml_escape "$POSITION")\""
 else
   POSITION_YAML="null"
 fi
 
 # Escape question for YAML
-QUESTION_YAML="\"$QUESTION\""
+QUESTION_YAML="\"$(yaml_escape "$QUESTION")\""
 
 # Create state file
 cat > "$ANVIL_STATE_FILE" <<EOF

@@ -12,6 +12,12 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Check for required dependency
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: Anvil requires 'jq'. Install with: brew install jq" >&2
+  exit 0
+fi
+
 # Read hook input from stdin
 HOOK_INPUT=$(cat)
 
@@ -22,16 +28,24 @@ if [[ ! -f "$ANVIL_STATE_FILE" ]]; then
   exit 0
 fi
 
-# Parse YAML frontmatter
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$ANVIL_STATE_FILE")
+# Helper: capitalize first letter (portable, works on macOS)
+capitalize() {
+  local str="$1"
+  local first
+  first=$(printf '%s' "${str:0:1}" | tr '[:lower:]' '[:upper:]')
+  printf '%s' "${first}${str:1}"
+}
 
-ACTIVE=$(echo "$FRONTMATTER" | grep '^active:' | sed 's/active: *//')
-QUESTION=$(echo "$FRONTMATTER" | grep '^question:' | sed 's/question: *//' | sed 's/^"\(.*\)"$/\1/')
-MODE=$(echo "$FRONTMATTER" | grep '^mode:' | sed 's/mode: *//')
-POSITION=$(echo "$FRONTMATTER" | grep '^position:' | sed 's/position: *//' | sed 's/^"\(.*\)"$/\1/')
-ROUND=$(echo "$FRONTMATTER" | grep '^round:' | sed 's/round: *//')
-MAX_ROUNDS=$(echo "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rounds: *//')
-PHASE=$(echo "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//')
+# Parse YAML frontmatter (only lines between first and second ---)
+FRONTMATTER=$(awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "$ANVIL_STATE_FILE")
+
+ACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^active:' | sed 's/active: *//' | tr -d '\r')
+QUESTION=$(printf '%s\n' "$FRONTMATTER" | grep '^question:' | sed 's/question: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+MODE=$(printf '%s\n' "$FRONTMATTER" | grep '^mode:' | sed 's/mode: *//' | tr -d '\r')
+POSITION=$(printf '%s\n' "$FRONTMATTER" | grep '^position:' | sed 's/position: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+ROUND=$(printf '%s\n' "$FRONTMATTER" | grep '^round:' | sed 's/round: *//' | tr -d '\r')
+MAX_ROUNDS=$(printf '%s\n' "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rounds: *//' | tr -d '\r')
+PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -62,7 +76,7 @@ case "$PHASE" in
 esac
 
 # Get transcript path from hook input
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path')
+TRANSCRIPT_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.transcript_path')
 
 if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
   echo "Warning: Anvil transcript not found. Cleaning up." >&2
@@ -79,7 +93,7 @@ fi
 
 LAST_LINE=$(grep '"role":"assistant"' "$TRANSCRIPT_PATH" | tail -1)
 
-LAST_OUTPUT=$(echo "$LAST_LINE" | jq -r '
+LAST_OUTPUT=$(printf '%s' "$LAST_LINE" | jq -r '
   .message.content |
   map(select(.type == "text")) |
   map(.text) |
@@ -92,18 +106,14 @@ if [[ -z "$LAST_OUTPUT" ]]; then
   exit 0
 fi
 
-# Helper: capitalize first letter (portable, works on macOS)
-capitalize() {
-  local str="$1"
-  local first
-  first=$(echo "${str:0:1}" | tr '[:lower:]' '[:upper:]')
-  echo "${first}${str:1}"
-}
+# Save the original phase for transcript attribution before any modification
+ORIGINAL_PHASE="$PHASE"
+ORIGINAL_ROUND="$ROUND"
 
 # Check for early completion signal
-if echo "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
+if printf '%s' "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
   # Strip the tag from output before appending
-  LAST_OUTPUT=$(echo "$LAST_OUTPUT" | sed 's/<anvil-complete\/>//')
+  LAST_OUTPUT=$(printf '%s' "$LAST_OUTPUT" | sed 's/<anvil-complete\/>//')
   # Force transition to synthesizer if not already there
   if [[ "$PHASE" != "synthesizer" ]]; then
     PHASE="critic"
@@ -111,17 +121,17 @@ if echo "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
   fi
 fi
 
-# Append output to state file under the correct heading
-PHASE_UPPER=$(capitalize "$PHASE")
+# Append output to state file under the correct heading (use ORIGINAL phase/round)
+PHASE_UPPER=$(capitalize "$ORIGINAL_PHASE")
 
-if [[ "$PHASE" == "advocate" ]] || [[ "$PHASE" == "critic" ]]; then
+if [[ "$ORIGINAL_PHASE" == "advocate" ]] || [[ "$ORIGINAL_PHASE" == "critic" ]]; then
   # Check if this round heading already exists
-  if ! grep -q "^## Round $ROUND" "$ANVIL_STATE_FILE"; then
-    printf "\n## Round %s\n" "$ROUND" >> "$ANVIL_STATE_FILE"
+  if ! grep -q "^## Round $ORIGINAL_ROUND" "$ANVIL_STATE_FILE"; then
+    printf '\n## Round %s\n' "$ORIGINAL_ROUND" >> "$ANVIL_STATE_FILE"
   fi
-  printf "\n### %s\n\n%s\n" "$PHASE_UPPER" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
-elif [[ "$PHASE" == "synthesizer" ]]; then
-  printf "\n## Synthesis\n\n%s\n" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
+  printf '\n### %s\n\n%s\n' "$PHASE_UPPER" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
+elif [[ "$ORIGINAL_PHASE" == "synthesizer" ]]; then
+  printf '\n## Synthesis\n\n%s\n' "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
 fi
 
 # --- State Machine Transitions ---
@@ -145,34 +155,26 @@ case "$PHASE" in
     ;;
   synthesizer)
     # Debate complete — write result file and allow exit
-    write_result_file() {
-      local RESULT_FILE=".claude/anvil-result.local.md"
-      local TIMESTAMP
-      TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    RESULT_FILE=".claude/anvil-result.local.md"
+    TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-      cat > "$RESULT_FILE" <<RESULT_EOF
-# Anvil Analysis
+    printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Date**: %s\n\n%s\n' \
+      "$QUESTION" "$MODE" "$ROUND" "$TIMESTAMP" "$LAST_OUTPUT" > "$RESULT_FILE"
 
-**Question**: $QUESTION
-**Mode**: $MODE
-**Rounds**: $ROUND
-**Date**: $TIMESTAMP
-
-$LAST_OUTPUT
-RESULT_EOF
-    }
-
-    write_result_file
     rm -f "$ANVIL_STATE_FILE"
     echo "Anvil debate complete. Result saved to .claude/anvil-result.local.md"
     exit 0
     ;;
 esac
 
-# Update state file frontmatter
+# Update state file frontmatter (only within frontmatter block, not transcript body)
 TEMP_FILE="${ANVIL_STATE_FILE}.tmp.$$"
-sed "s/^phase: .*/phase: $NEXT_PHASE/" "$ANVIL_STATE_FILE" | \
-  sed "s/^round: .*/round: $NEXT_ROUND/" > "$TEMP_FILE"
+awk -v next_phase="$NEXT_PHASE" -v next_round="$NEXT_ROUND" '
+  /^---$/ { count++ }
+  count <= 1 && /^phase: / { print "phase: " next_phase; next }
+  count <= 1 && /^round: / { print "round: " next_round; next }
+  { print }
+' "$ANVIL_STATE_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$ANVIL_STATE_FILE"
 
 # --- Construct Next Prompt ---
@@ -221,7 +223,7 @@ FULL_PROMPT="$FULL_PROMPT. Read the debate above carefully, then produce your re
 if [[ "$NEXT_PHASE" == "synthesizer" ]]; then
   SYSTEM_MSG="Anvil: SYNTHESIZER phase — produce balanced final analysis"
 else
-  SYSTEM_MSG="Anvil: $(echo "$NEXT_PHASE" | tr '[:lower:]' '[:upper:]') phase — Round $NEXT_ROUND of $MAX_ROUNDS"
+  SYSTEM_MSG="Anvil: $(printf '%s' "$NEXT_PHASE" | tr '[:lower:]' '[:upper:]') phase — Round $NEXT_ROUND of $MAX_ROUNDS"
 fi
 
 # Output JSON to block exit and inject next prompt

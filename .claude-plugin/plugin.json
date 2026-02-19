@@ -1,5 +1,6 @@
 {
   "name": "anvil",
+  "version": "1.0.0",
   "description": "Adversarial thinking through structured debates. Stress-test ideas by rotating through Advocate, Critic, and Synthesizer phases with configurable debate modes.",
   "author": {
     "name": "Franz",
