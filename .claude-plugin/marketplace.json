@@ -1,0 +1,26 @@
+{
+  "name": "franjoo",
+  "owner": {
+    "name": "Franz",
+    "email": "franz@franz.cx"
+  },
+  "metadata": {
+    "description": "Franz's Claude Code plugins"
+  },
+  "plugins": [
+    {
+      "name": "anvil",
+      "source": "./",
+      "description": "Adversarial thinking through structured debates. Stress-test ideas by rotating through Advocate, Critic, and Synthesizer phases with configurable debate modes.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Franz",
+        "email": "franz@franz.cx"
+      },
+      "homepage": "https://github.com/Franjoo/anvil",
+      "repository": "https://github.com/Franjoo/anvil",
+      "license": "MIT",
+      "keywords": ["adversarial", "debate", "thinking", "analysis", "decision-making"]
+    }
+  ]
+}

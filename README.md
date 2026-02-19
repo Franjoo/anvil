@@ -12,15 +12,22 @@ The name: an anvil is what you hammer arguments against to shape them.
 
 ## Installation
 
-```bash
-claude plugins add /path/to/anvil
+In Claude Code, run:
+
+```
+/plugin marketplace add Franjoo/anvil
+/plugin install anvil@franjoo
 ```
 
-Or clone and add:
+That's it. No cloning needed. Auto-updates are supported via `/plugin marketplace update franjoo`.
+
+### Local development
+
+For local development or testing, use `--plugin-dir`:
 
 ```bash
-git clone https://github.com/your-username/anvil.git
-claude plugins add ./anvil
+git clone https://github.com/Franjoo/anvil.git
+claude --plugin-dir ./anvil
 ```
 
 ## Usage
@@ -28,13 +35,13 @@ claude plugins add ./anvil
 ### Start a debate
 
 ```
-/anvil "Should we use microservices for our e-commerce platform?"
+/anvil:anvil "Should we use microservices for our e-commerce platform?"
 ```
 
 ### Options
 
 ```
-/anvil "question" [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position "TEXT"] [--research]
+/anvil:anvil "question" [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position "TEXT"] [--research]
 ```
 
 | Option | Default | Description |
@@ -49,13 +56,13 @@ claude plugins add ./anvil
 ### Check status
 
 ```
-/anvil-status
+/anvil:anvil-status
 ```
 
 ### Cancel active debate
 
 ```
-/anvil-cancel
+/anvil:anvil-cancel
 ```
 
 ## Modes
@@ -65,7 +72,7 @@ claude plugins add ./anvil
 Evidence-based technical analysis. Advocate argues FOR with data and benchmarks. Critic dismantles with counter-evidence. Best for tech decisions and strategy.
 
 ```
-/anvil "Should we migrate to Kubernetes?" --mode analyst
+/anvil:anvil "Should we migrate to Kubernetes?" --mode analyst
 ```
 
 ### Philosopher
@@ -73,7 +80,7 @@ Evidence-based technical analysis. Advocate argues FOR with data and benchmarks.
 Socratic exploration using first-principles reasoning. Thought experiments, ethical frameworks, definitional precision. Best for ethics, thought experiments, and fundamental questions.
 
 ```
-/anvil "Is AI-generated code really 'your' code?" --mode philosopher
+/anvil:anvil "Is AI-generated code really 'your' code?" --mode philosopher
 ```
 
 ### With Research
@@ -81,7 +88,7 @@ Socratic exploration using first-principles reasoning. Thought experiments, ethi
 Enable `--research` to ground arguments in real-time web searches. Each phase performs targeted research: Advocate searches for supporting evidence, Critic for counter-evidence, Synthesizer fact-checks both.
 
 ```
-/anvil "Should we adopt Rust for our backend services?" --mode analyst --research
+/anvil:anvil "Should we adopt Rust for our backend services?" --mode analyst --research
 ```
 
 ### Devil's Advocate
@@ -89,7 +96,7 @@ Enable `--research` to ground arguments in real-time web searches. Each phase pe
 **Roles are reversed.** Advocate attacks YOUR stated position. Critic defends it and finds weaknesses in the attacks. Best for stress-testing beliefs you already hold.
 
 ```
-/anvil "monolith vs microservices" --mode devils-advocate --position "I believe we should stay with our monolith because our team is small"
+/anvil:anvil "monolith vs microservices" --mode devils-advocate --position "I believe we should stay with our monolith because our team is small"
 ```
 
 ## How It Works
@@ -99,7 +106,7 @@ Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-c
 ### Debate Flow
 
 ```
-/anvil "question"
+/anvil:anvil "question"
   │
   ├─ setup-anvil.sh creates state file + outputs ADVOCATE prompt
   │
@@ -138,9 +145,9 @@ When synthesis completes, the final analysis is written to `.claude/anvil-result
 anvil/
 ├── .claude-plugin/plugin.json    # Plugin manifest
 ├── commands/
-│   ├── anvil.md                  # /anvil command
-│   ├── anvil-status.md           # /anvil-status command
-│   └── anvil-cancel.md           # /anvil-cancel command
+│   ├── anvil.md                  # /anvil:anvil command
+│   ├── anvil-status.md           # /anvil:anvil-status command
+│   └── anvil-cancel.md           # /anvil:anvil-cancel command
 ├── hooks/
 │   ├── hooks.json                # Stop hook registration
 │   └── stop-hook.sh              # Core orchestrator (state machine)
