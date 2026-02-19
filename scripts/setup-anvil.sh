@@ -21,6 +21,7 @@ FOLLOW_UP=""
 VERSUS_A=""
 VERSUS_B=""
 INTERACTIVE=false
+STAKEHOLDERS=""
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -110,6 +111,14 @@ while [[ $# -gt 0 ]]; do
       INTERACTIVE=true
       shift
       ;;
+    --stakeholders)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --stakeholders requires a comma-separated list (e.g., engineering,product,business)" >&2
+        exit 1
+      fi
+      STAKEHOLDERS="$2"
+      shift 2
+      ;;
     --versus)
       if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
         echo "Error: --versus requires two file paths" >&2
@@ -161,14 +170,30 @@ if [[ -z "$QUESTION" ]]; then
   exit 1
 fi
 
+# Auto-set stakeholders mode if --stakeholders provided without --mode
+if [[ -n "$STAKEHOLDERS" ]] && [[ "$MODE" == "analyst" ]]; then
+  MODE="stakeholders"
+fi
+
 # Validate mode
 case "$MODE" in
-  analyst|philosopher|devils-advocate) ;;
+  analyst|philosopher|devils-advocate|stakeholders) ;;
   *)
-    echo "Error: Invalid mode '$MODE'. Must be one of: analyst, philosopher, devils-advocate" >&2
+    echo "Error: Invalid mode '$MODE'. Must be one of: analyst, philosopher, devils-advocate, stakeholders" >&2
     exit 1
     ;;
 esac
+
+# Set default stakeholders if mode is stakeholders but no custom list
+if [[ "$MODE" == "stakeholders" ]] && [[ -z "$STAKEHOLDERS" ]]; then
+  STAKEHOLDERS="Engineering Team,Product/UX,Business/Management"
+fi
+
+# Validate --stakeholders requires stakeholders mode
+if [[ -n "$STAKEHOLDERS" ]] && [[ "$MODE" != "stakeholders" ]]; then
+  echo "Error: --stakeholders can only be used with --mode stakeholders" >&2
+  exit 1
+fi
 
 # Validate framework
 if [[ -n "$FRAMEWORK" ]]; then
@@ -181,8 +206,12 @@ if [[ -n "$FRAMEWORK" ]]; then
   esac
 fi
 
-# Validate rounds
-if [[ "$ROUNDS" -lt 1 ]] || [[ "$ROUNDS" -gt 5 ]]; then
+# Validate rounds (skip for stakeholders — rounds = number of stakeholders)
+if [[ "$MODE" == "stakeholders" ]]; then
+  # Count stakeholders (comma-separated)
+  IFS=',' read -ra STAKEHOLDER_LIST <<< "$STAKEHOLDERS"
+  ROUNDS=${#STAKEHOLDER_LIST[@]}
+elif [[ "$ROUNDS" -lt 1 ]] || [[ "$ROUNDS" -gt 5 ]]; then
   echo "Error: --rounds must be between 1 and 5 (got: $ROUNDS)" >&2
   exit 1
 fi
@@ -378,7 +407,7 @@ mode: $MODE
 position: $POSITION_YAML
 round: 1
 max_rounds: $ROUNDS
-phase: advocate
+phase: $( [[ "$MODE" == "stakeholders" ]] && echo "stakeholder" || echo "advocate" )
 research: $RESEARCH
 framework: $FRAMEWORK
 focus: "$FOCUS"
@@ -386,6 +415,8 @@ context_source: "$CONTEXT_SOURCE"
 follow_up: "$FOLLOW_UP"
 versus: $( [[ -n "$VERSUS_A" ]] && echo "true" || echo "false" )
 interactive: $INTERACTIVE
+stakeholders: "$STAKEHOLDERS"
+stakeholder_index: 1
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -409,8 +440,15 @@ if [[ -n "$VERSUS_A" ]]; then
   printf '\n## Position B\n\nSource: %s\n\n%s\n' "$VERSUS_B" "$VERSUS_B_CONTENT" >> "$ANVIL_STATE_FILE"
 fi
 
-# Read the initial advocate prompt
-ADVOCATE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/advocate.md")
+# Read the initial role prompt
+if [[ "$MODE" == "stakeholders" ]]; then
+  # For stakeholders mode, get the first stakeholder role
+  IFS=',' read -ra STAKEHOLDER_LIST <<< "$STAKEHOLDERS"
+  FIRST_STAKEHOLDER=$(printf '%s' "${STAKEHOLDER_LIST[0]}" | sed 's/^ *//;s/ *$//')
+  ROLE_PROMPT_INITIAL="You are now embodying the **$FIRST_STAKEHOLDER** perspective. Analyze the question exclusively from this stakeholder's viewpoint."
+else
+  ROLE_PROMPT_INITIAL=$(cat "$PLUGIN_ROOT/prompts/advocate.md")
+fi
 MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md")
 
 # Build the initial prompt
@@ -447,10 +485,18 @@ if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"
 fi
 echo ""
-echo "  Phase:     ADVOCATE (Round 1 of $ROUNDS)"
-echo ""
-echo "  The debate will cycle through:"
-echo "    Advocate → Critic → ... → Synthesizer"
+if [[ "$MODE" == "stakeholders" ]]; then
+  echo "  Stakeholders: $STAKEHOLDERS"
+  echo "  Phase:     STAKEHOLDER 1 — $FIRST_STAKEHOLDER"
+  echo ""
+  echo "  The simulation will cycle through:"
+  echo "    Stakeholder 1 → Stakeholder 2 → ... → Synthesizer"
+else
+  echo "  Phase:     ADVOCATE (Round 1 of $ROUNDS)"
+  echo ""
+  echo "  The debate will cycle through:"
+  echo "    Advocate → Critic → ... → Synthesizer"
+fi
 echo ""
 echo "  When you finish each phase, the stop hook will"
 echo "  automatically feed you the next role."
@@ -459,7 +505,7 @@ echo "============================================================"
 echo ""
 echo "$MODE_PROMPT"
 echo ""
-echo "$ADVOCATE_PROMPT"
+echo "$ROLE_PROMPT_INITIAL"
 echo ""
 echo "---"
 echo ""
@@ -533,6 +579,12 @@ if [[ "$RESEARCH" == "true" ]]; then
       echo "- Search for evidence that UNDERMINES the user's stated position"
       echo "- Look for failure cases, risks, and overlooked consequences"
       echo "- Find real-world examples where similar positions turned out wrong"
+      ;;
+    stakeholders)
+      echo "- Search for real-world concerns, data, and examples relevant to THIS stakeholder's perspective"
+      echo "- Look for case studies where this stakeholder role was impacted by similar decisions"
+      echo "- Find industry benchmarks, regulations, or standards this stakeholder would reference"
+      echo "- Search for common failure modes that this stakeholder would worry about"
       ;;
   esac
   echo "- Cite your sources inline: [Source Title](URL)"

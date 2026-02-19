@@ -52,6 +52,8 @@ FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed
 CONTEXT_SOURCE=$(printf '%s\n' "$FRONTMATTER" | grep '^context_source:' | sed 's/context_source: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 VERSUS=$(printf '%s\n' "$FRONTMATTER" | grep '^versus:' | sed 's/versus: *//' | tr -d '\r')
 INTERACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^interactive:' | sed 's/interactive: *//' | tr -d '\r')
+STAKEHOLDERS=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholders:' | sed 's/stakeholders: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+STAKEHOLDER_INDEX=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholder_index:' | sed 's/stakeholder_index: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -73,7 +75,7 @@ fi
 
 # Validate phase
 case "$PHASE" in
-  advocate|critic|synthesizer|interactive-pause) ;;
+  advocate|critic|synthesizer|interactive-pause|stakeholder) ;;
   *)
     echo "Warning: Anvil state corrupted (invalid phase: '$PHASE'). Cleaning up." >&2
     rm -f "$ANVIL_STATE_FILE"
@@ -122,7 +124,11 @@ if printf '%s' "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
   LAST_OUTPUT=$(printf '%s' "$LAST_OUTPUT" | sed 's/<anvil-complete\/>//')
   # Force transition to synthesizer if not already there
   if [[ "$PHASE" != "synthesizer" ]]; then
-    PHASE="critic"
+    if [[ "$PHASE" == "stakeholder" ]]; then
+      PHASE="stakeholder"
+    else
+      PHASE="critic"
+    fi
     ROUND="$MAX_ROUNDS"
   fi
 fi
@@ -133,6 +139,12 @@ PHASE_UPPER=$(capitalize "$ORIGINAL_PHASE")
 
 if [[ "$ORIGINAL_PHASE" == "interactive-pause" ]]; then
   : # Do not append interactive-pause output to debate transcript
+elif [[ "$ORIGINAL_PHASE" == "stakeholder" ]]; then
+  # For stakeholder mode, get the stakeholder name by index
+  IFS=',' read -ra SH_LIST <<< "$STAKEHOLDERS"
+  SH_IDX=$((ORIGINAL_ROUND - 1))
+  SH_NAME=$(printf '%s' "${SH_LIST[$SH_IDX]}" | sed 's/^ *//;s/ *$//')
+  printf '\n## Stakeholder %s: %s\n\n%s\n' "$ORIGINAL_ROUND" "$SH_NAME" "$LAST_OUTPUT" >> "$ANVIL_STATE_FILE"
 elif [[ "$ORIGINAL_PHASE" == "advocate" ]] || [[ "$ORIGINAL_PHASE" == "critic" ]]; then
   # Check if this round heading already exists
   if ! grep -q "^## Round $ORIGINAL_ROUND" "$ANVIL_STATE_FILE"; then
@@ -163,6 +175,16 @@ case "$PHASE" in
         NEXT_PHASE="advocate"
         NEXT_ROUND=$((ROUND + 1))
       fi
+    else
+      NEXT_PHASE="synthesizer"
+      NEXT_ROUND="$ROUND"
+    fi
+    ;;
+  stakeholder)
+    # Stakeholder mode: rotate through stakeholders, then synthesize
+    if [[ "$ROUND" -lt "$MAX_ROUNDS" ]]; then
+      NEXT_PHASE="stakeholder"
+      NEXT_ROUND=$((ROUND + 1))
     else
       NEXT_PHASE="synthesizer"
       NEXT_ROUND="$ROUND"
@@ -225,6 +247,7 @@ awk -v next_phase="$NEXT_PHASE" -v next_round="$NEXT_ROUND" '
   /^---$/ { count++ }
   count <= 1 && /^phase: / { print "phase: " next_phase; next }
   count <= 1 && /^round: / { print "round: " next_round; next }
+  count <= 1 && /^stakeholder_index: / { print "stakeholder_index: " next_round; next }
   { print }
 ' "$ANVIL_STATE_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$ANVIL_STATE_FILE"
@@ -282,10 +305,22 @@ Incorporate this directive into your argument. Address the user's concern direct
 fi
 
 # Read role prompt
-ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo "")
+if [[ "$NEXT_PHASE" == "stakeholder" ]]; then
+  # Get the stakeholder name for this round
+  IFS=',' read -ra SH_LIST <<< "$STAKEHOLDERS"
+  SH_IDX=$((NEXT_ROUND - 1))
+  SH_NAME=$(printf '%s' "${SH_LIST[$SH_IDX]}" | sed 's/^ *//;s/ *$//')
+  ROLE_PROMPT="You are now embodying the **$SH_NAME** perspective. Analyze the question exclusively from this stakeholder's viewpoint. This is stakeholder $NEXT_ROUND of ${#SH_LIST[@]}."
+else
+  ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo "")
+fi
 
-# Read mode prompt
-MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo "")
+# Read mode prompt (synthesizer in stakeholder mode gets analyst tone, not stakeholder embodiment)
+if [[ "$NEXT_PHASE" == "synthesizer" ]] && [[ "$MODE" == "stakeholders" ]]; then
+  MODE_PROMPT="You are synthesizing a **stakeholder simulation**. Do NOT embody any single stakeholder. Instead, analyze where stakeholders aligned, where they conflicted, and what no stakeholder considered."
+else
+  MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo "")
+fi
 
 # Read framework template (synthesizer only)
 FRAMEWORK_PROMPT=""
@@ -297,7 +332,10 @@ fi
 RESEARCH_BLOCK=""
 if [[ "$RESEARCH" == "true" ]]; then
   # Mode-specific research guidance
-  RESEARCH_FOCUS=""
+  RESEARCH_FOCUS_ADVOCATE=""
+  RESEARCH_FOCUS_CRITIC=""
+  RESEARCH_FOCUS_STAKEHOLDER=""
+  RESEARCH_FOCUS_SYNTH=""
   case "$MODE" in
     analyst)
       RESEARCH_FOCUS_ADVOCATE="- Search for data, studies, benchmarks, and case studies that SUPPORT your position
@@ -337,6 +375,15 @@ if [[ "$RESEARCH" == "true" ]]; then
 - Check if cited sources actually support the claims made
 - If a claim lacks a source, search to confirm or refute it"
       ;;
+    stakeholders)
+      RESEARCH_FOCUS_STAKEHOLDER="- Search for real-world concerns, data, and examples relevant to THIS stakeholder's perspective
+- Look for case studies where this stakeholder role was impacted by similar decisions
+- Find industry benchmarks, regulations, or standards this stakeholder would reference
+- Search for common failure modes that this stakeholder would worry about"
+      RESEARCH_FOCUS_SYNTH="- Verify key claims and data points cited by the various stakeholders
+- Check if cited industry standards or regulations are accurately represented
+- Search for stakeholder perspectives that may have been underrepresented"
+      ;;
   esac
 
   if [[ "$NEXT_PHASE" == "advocate" ]]; then
@@ -361,6 +408,18 @@ $RESEARCH_FOCUS_CRITIC
 - PREFER researched evidence with real URLs over claims from memory
 
 Perform at least 2-3 targeted searches. If the Advocate cited sources, verify their accuracy.
+
+If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
+  elif [[ "$NEXT_PHASE" == "stakeholder" ]]; then
+    RESEARCH_BLOCK="
+## Research Mode ENABLED
+
+Before analyzing from this stakeholder's perspective, use **WebSearch** to research relevant evidence:
+$RESEARCH_FOCUS_STAKEHOLDER
+- Cite your sources inline: [Source Title](URL)
+- PREFER researched evidence with real URLs over claims from memory
+
+Perform at least 2-3 targeted searches relevant to this stakeholder's domain and concerns.
 
 If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
   elif [[ "$NEXT_PHASE" == "synthesizer" ]]; then
@@ -467,7 +526,9 @@ $TRANSCRIPT_SO_FAR
 
 You are now in the **$(capitalize "$NEXT_PHASE")** phase"
 
-if [[ "$NEXT_PHASE" != "synthesizer" ]]; then
+if [[ "$NEXT_PHASE" == "stakeholder" ]]; then
+  FULL_PROMPT="$FULL_PROMPT — **$SH_NAME** perspective ($NEXT_ROUND of $MAX_ROUNDS)"
+elif [[ "$NEXT_PHASE" != "synthesizer" ]]; then
   FULL_PROMPT="$FULL_PROMPT (Round $NEXT_ROUND of $MAX_ROUNDS)"
 fi
 
@@ -476,6 +537,8 @@ FULL_PROMPT="$FULL_PROMPT. Read the debate above carefully, then produce your re
 # Build system message
 if [[ "$NEXT_PHASE" == "synthesizer" ]]; then
   SYSTEM_MSG="Anvil: SYNTHESIZER phase — produce balanced final analysis"
+elif [[ "$NEXT_PHASE" == "stakeholder" ]]; then
+  SYSTEM_MSG="Anvil: STAKEHOLDER phase — $SH_NAME perspective ($NEXT_ROUND of $MAX_ROUNDS)"
 else
   SYSTEM_MSG="Anvil: $(printf '%s' "$NEXT_PHASE" | tr '[:lower:]' '[:upper:]') phase — Round $NEXT_ROUND of $MAX_ROUNDS"
 fi
