@@ -51,6 +51,16 @@ if [[ ! "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
   exit 0
 fi
 
+# Validate phase
+case "$PHASE" in
+  advocate|critic|synthesizer) ;;
+  *)
+    echo "Warning: Anvil state corrupted (invalid phase: '$PHASE'). Cleaning up." >&2
+    rm -f "$ANVIL_STATE_FILE"
+    exit 0
+    ;;
+esac
+
 # Get transcript path from hook input
 TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path')
 
@@ -82,8 +92,27 @@ if [[ -z "$LAST_OUTPUT" ]]; then
   exit 0
 fi
 
+# Helper: capitalize first letter (portable, works on macOS)
+capitalize() {
+  local str="$1"
+  local first
+  first=$(echo "${str:0:1}" | tr '[:lower:]' '[:upper:]')
+  echo "${first}${str:1}"
+}
+
+# Check for early completion signal
+if echo "$LAST_OUTPUT" | grep -q '<anvil-complete/>'; then
+  # Strip the tag from output before appending
+  LAST_OUTPUT=$(echo "$LAST_OUTPUT" | sed 's/<anvil-complete\/>//')
+  # Force transition to synthesizer if not already there
+  if [[ "$PHASE" != "synthesizer" ]]; then
+    PHASE="critic"
+    ROUND="$MAX_ROUNDS"
+  fi
+fi
+
 # Append output to state file under the correct heading
-PHASE_UPPER=$(echo "$PHASE" | sed 's/^./\U&/')
+PHASE_UPPER=$(capitalize "$PHASE")
 
 if [[ "$PHASE" == "advocate" ]] || [[ "$PHASE" == "critic" ]]; then
   # Check if this round heading already exists
@@ -180,7 +209,7 @@ $TRANSCRIPT_SO_FAR
 
 ---
 
-You are now in the **${NEXT_PHASE^}** phase"
+You are now in the **$(capitalize "$NEXT_PHASE")** phase"
 
 if [[ "$NEXT_PHASE" != "synthesizer" ]]; then
   FULL_PROMPT="$FULL_PROMPT (Round $NEXT_ROUND of $MAX_ROUNDS)"
@@ -192,7 +221,7 @@ FULL_PROMPT="$FULL_PROMPT. Read the debate above carefully, then produce your re
 if [[ "$NEXT_PHASE" == "synthesizer" ]]; then
   SYSTEM_MSG="Anvil: SYNTHESIZER phase — produce balanced final analysis"
 else
-  SYSTEM_MSG="Anvil: ${NEXT_PHASE^^} phase — Round $NEXT_ROUND of $MAX_ROUNDS"
+  SYSTEM_MSG="Anvil: $(echo "$NEXT_PHASE" | tr '[:lower:]' '[:upper:]') phase — Round $NEXT_ROUND of $MAX_ROUNDS"
 fi
 
 # Output JSON to block exit and inject next prompt
