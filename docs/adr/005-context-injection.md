@@ -16,7 +16,7 @@ Code-aware debates (`--context`, `--pr`, `--diff`) need to inject real codebase 
 
 ## Decision
 
-State file body injection (option 3). The setup script generates context at debate start, caps it at 5000 characters, and appends it to the state file body. The stop hook's existing transcript extraction (`awk '/^---$/{i++; next} i>=2'`) picks it up automatically — no special handling needed in the hook.
+State file body injection (option 3). The setup script generates context at debate start, caps it at 5000 characters, and appends it to the state file body. For Round 1 (which is served by the setup script, not the stop hook), context is also output directly in the initial prompt. For all subsequent rounds, the stop hook's existing transcript extraction (`awk '/^---$/{i++; next} i>=2'`) picks it up from the state file automatically — no special handling needed in the hook.
 
 Context generation is handled by four dedicated functions in `setup-anvil.sh`:
 - `generate_dir_context()` — File tree + key declarations via grep heuristic

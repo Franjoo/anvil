@@ -20,7 +20,7 @@ Dedicated phase type (option 2). The state machine gains:
 stakeholder(R1) → stakeholder(R2) → ... → stakeholder(RN) → synthesizer
 ```
 
-Stakeholder names are stored comma-separated in frontmatter (`stakeholders: "Engineering Team,Product/UX,Business/Management"`). Rounds auto-calculate from stakeholder count. Each stakeholder gets an inline role prompt instead of reading from `prompts/` — the prompt is generated dynamically with the stakeholder's name.
+Stakeholder names are stored comma-separated in frontmatter (`stakeholders: "Engineering Team,Product/UX,Business/Management"`). Rounds auto-calculate from stakeholder count. The mode-level instructions come from `prompts/modes/stakeholders.md`, which defines the general stakeholder simulation behavior. The per-stakeholder role prompts are generated inline with the stakeholder's name — there is no file per stakeholder.
 
 The synthesizer in stakeholder mode gets a custom neutral mode prompt instead of the `stakeholders.md` embodiment instructions, preventing the conflict of "embody a stakeholder" + "be a neutral synthesizer."
 

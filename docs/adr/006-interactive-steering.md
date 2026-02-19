@@ -8,9 +8,9 @@ Accepted
 
 Interactive mode (`--interactive`) lets users steer the debate between rounds. The challenge is capturing user input mid-debate when the stop hook only controls phase transitions. Three approaches were considered:
 
-1. **In-band signaling** — Use a special comment syntax in the Critic's output to encode user feedback. Problem: unreliable — Claude may not produce the exact format, and parsing natural language for steering intent is fragile.
+1. **Direct hook prompting** — Have the stop hook itself present a user-facing question (via the JSON `reason` field) and parse the response. Problem: the stop hook's JSON response blocks the session with a prompt — it cannot wait for a second user response before deciding the next phase. Hooks are fire-and-forget, not interactive.
 
-2. **Separate hook** — Use a different hook type (e.g., pre-tool) to intercept between phases. Problem: no suitable hook point exists between stop-hook invocations.
+2. **Two-step hook with state flag** — Set an `awaiting_steering: true` flag in state, let Claude's next output contain user input, then parse it on the subsequent stop-hook invocation. Problem: the user would need to type their steering into Claude's regular input, which conflates debate steering with normal session usage. No way to distinguish steering from unrelated messages.
 
 3. **Meta-phase insertion** — Introduce `interactive-pause` as a dedicated phase in the state machine. After the Critic phase, instead of transitioning to Advocate, transition to `interactive-pause`. This phase instructs Claude to summarize the round and use `AskUserQuestion` to get steering input. The response is parsed for an `<anvil-steering>` tag, and the extracted direction is injected into the next Advocate prompt.
 

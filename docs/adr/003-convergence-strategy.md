@@ -20,7 +20,7 @@ Hard round limit as the primary convergence mechanism. Default is 3 rounds, maxi
 
 As a secondary signal (optional, not relied upon): if an advocate or critic outputs `<anvil-complete/>`, this is treated as a natural endpoint and the debate moves to synthesis early. The stop hook checks for this tag before enforcing the round limit.
 
-v1 uses the hard limit only. More sophisticated convergence detection is explicitly deferred to v2.
+v2 retained this approach unchanged. The `<anvil-complete/>` signal was extended to work with stakeholder and persona rotation modes, but the core convergence strategy (hard round limit + optional early exit) proved sufficient and was not replaced with more sophisticated detection.
 
 ## Consequences
 
