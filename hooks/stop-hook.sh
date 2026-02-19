@@ -50,6 +50,7 @@ RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *
 FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework: *//' | tr -d '\r')
 FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 CONTEXT_SOURCE=$(printf '%s\n' "$FRONTMATTER" | grep '^context_source:' | sed 's/context_source: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+VERSUS=$(printf '%s\n' "$FRONTMATTER" | grep '^versus:' | sed 's/versus: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -345,6 +346,23 @@ Evaluate through: $FOCUS_DESCRIPTION"
   else
     FULL_PROMPT="$FULL_PROMPT
 Evaluate exclusively through the lens of: **$FOCUS**"
+  fi
+fi
+
+# Inject versus framing for advocate and critic
+if [[ "$VERSUS" == "true" ]] && [[ "$NEXT_PHASE" != "synthesizer" ]]; then
+  if [[ "$NEXT_PHASE" == "advocate" ]]; then
+    FULL_PROMPT="$FULL_PROMPT
+
+## VERSUS MODE
+
+You are defending **Position A**. Argue why Position A's analysis and conclusions are stronger than Position B's. Reference specific arguments from both positions."
+  elif [[ "$NEXT_PHASE" == "critic" ]]; then
+    FULL_PROMPT="$FULL_PROMPT
+
+## VERSUS MODE
+
+You are defending **Position B**. Argue why Position B's analysis and conclusions are stronger than Position A's. Reference specific arguments from both positions."
   fi
 fi
 

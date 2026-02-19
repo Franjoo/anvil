@@ -17,6 +17,9 @@ FOCUS=""
 CONTEXT_PATHS=()
 CONTEXT_PR=""
 CONTEXT_DIFF=false
+FOLLOW_UP=""
+VERSUS_A=""
+VERSUS_B=""
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -94,6 +97,24 @@ while [[ $# -gt 0 ]]; do
       CONTEXT_DIFF=true
       shift
       ;;
+    --follow-up)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --follow-up requires a file path" >&2
+        exit 1
+      fi
+      FOLLOW_UP="$2"
+      shift 2
+      ;;
+    --versus)
+      if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+        echo "Error: --versus requires two file paths" >&2
+        echo "Usage: /anvil --versus result-a.md result-b.md" >&2
+        exit 1
+      fi
+      VERSUS_A="$2"
+      VERSUS_B="$3"
+      shift 3
+      ;;
     *)
       QUESTION_PARTS+=("$1")
       shift
@@ -103,7 +124,31 @@ done
 
 QUESTION="${QUESTION_PARTS[*]}"
 
-# Validate question
+# Validate --follow-up file
+if [[ -n "$FOLLOW_UP" ]]; then
+  if [[ ! -f "$FOLLOW_UP" ]]; then
+    echo "Error: Follow-up file not found: $FOLLOW_UP" >&2
+    exit 1
+  fi
+fi
+
+# Validate --versus files
+if [[ -n "$VERSUS_A" ]]; then
+  if [[ ! -f "$VERSUS_A" ]]; then
+    echo "Error: Versus file not found: $VERSUS_A" >&2
+    exit 1
+  fi
+  if [[ ! -f "$VERSUS_B" ]]; then
+    echo "Error: Versus file not found: $VERSUS_B" >&2
+    exit 1
+  fi
+fi
+
+# Validate question (--versus auto-generates a question)
+if [[ -n "$VERSUS_A" ]] && [[ -z "$QUESTION" ]]; then
+  QUESTION="Which analysis is stronger and why?"
+fi
+
 if [[ -z "$QUESTION" ]]; then
   echo "Error: No question provided." >&2
   echo "" >&2
@@ -333,6 +378,8 @@ research: $RESEARCH
 framework: $FRAMEWORK
 focus: "$FOCUS"
 context_source: "$CONTEXT_SOURCE"
+follow_up: "$FOLLOW_UP"
+versus: $( [[ -n "$VERSUS_A" ]] && echo "true" || echo "false" )
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -340,6 +387,20 @@ EOF
 # Append context to state file body (before any rounds)
 if [[ "$HAS_CONTEXT" == "true" ]]; then
   printf '\n%s\n' "$CONTEXT_BODY" >> "$ANVIL_STATE_FILE"
+fi
+
+# Append follow-up context
+if [[ -n "$FOLLOW_UP" ]]; then
+  FOLLOW_UP_CONTENT=$(cat "$FOLLOW_UP")
+  printf '\n## Prior Analysis\n\nThe following is the result of a previous Anvil debate. This new debate builds on its conclusions.\n\n%s\n' "$FOLLOW_UP_CONTENT" >> "$ANVIL_STATE_FILE"
+fi
+
+# Append versus positions
+if [[ -n "$VERSUS_A" ]]; then
+  VERSUS_A_CONTENT=$(cat "$VERSUS_A")
+  VERSUS_B_CONTENT=$(cat "$VERSUS_B")
+  printf '\n## Position A\n\nSource: %s\n\n%s\n' "$VERSUS_A" "$VERSUS_A_CONTENT" >> "$ANVIL_STATE_FILE"
+  printf '\n## Position B\n\nSource: %s\n\n%s\n' "$VERSUS_B" "$VERSUS_B_CONTENT" >> "$ANVIL_STATE_FILE"
 fi
 
 # Read the initial advocate prompt
@@ -366,6 +427,12 @@ if [[ -n "$FOCUS" ]]; then
 fi
 if [[ "$HAS_CONTEXT" == "true" ]]; then
   echo "  Context:   $CONTEXT_SOURCE"
+fi
+if [[ -n "$FOLLOW_UP" ]]; then
+  echo "  Follow-up: $FOLLOW_UP"
+fi
+if [[ -n "$VERSUS_A" ]]; then
+  echo "  Versus:    $VERSUS_A vs $VERSUS_B"
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"
@@ -395,6 +462,26 @@ fi
 if [[ "$HAS_CONTEXT" == "true" ]]; then
   echo ""
   printf '%s\n' "$CONTEXT_BODY"
+fi
+if [[ -n "$FOLLOW_UP" ]]; then
+  echo ""
+  echo "## Prior Analysis"
+  echo ""
+  echo "The following is the result of a previous Anvil debate. This new debate builds on its conclusions."
+  echo ""
+  printf '%s\n' "$FOLLOW_UP_CONTENT"
+fi
+if [[ -n "$VERSUS_A" ]]; then
+  echo ""
+  echo "## Position A (Source: $VERSUS_A)"
+  echo ""
+  printf '%s\n' "$VERSUS_A_CONTENT"
+  echo ""
+  echo "## Position B (Source: $VERSUS_B)"
+  echo ""
+  printf '%s\n' "$VERSUS_B_CONTENT"
+  echo ""
+  echo "**VERSUS MODE:** As the Advocate, defend Position A. Argue why Position A's analysis and conclusions are stronger. Reference specific arguments from both positions."
 fi
 if [[ -n "$FOCUS" ]]; then
   echo ""
