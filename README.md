@@ -1,6 +1,10 @@
-# Anvil
+<p align="center">
+  <img src="assets/icon.png" alt="Anvil" width="128" height="128">
+</p>
 
-Adversarial thinking plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Stress-test ideas through structured debates.
+<h1 align="center">Anvil</h1>
+
+<p align="center">Adversarial thinking plugin for <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>. Stress-test ideas through structured debates.</p>
 
 Anvil is a **thinking tool** that forces rigorous examination of propositions by rotating through Advocate, Critic, and Synthesizer phases — each with distinct role prompts that demand genuine adversarial positions. With `--research` enabled, arguments are grounded in real-time web research.
 
