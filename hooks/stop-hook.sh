@@ -47,6 +47,7 @@ ROUND=$(printf '%s\n' "$FRONTMATTER" | grep '^round:' | sed 's/round: *//' | tr 
 MAX_ROUNDS=$(printf '%s\n' "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rounds: *//' | tr -d '\r')
 PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d '\r')
 RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *//' | tr -d '\r')
+FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -164,8 +165,19 @@ case "$PHASE" in
       RESEARCH_LABEL="yes"
     fi
 
-    printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Research**: %s\n**Date**: %s\n\n%s\n' \
-      "$QUESTION" "$MODE" "$ROUND" "$RESEARCH_LABEL" "$TIMESTAMP" "$LAST_OUTPUT" > "$RESULT_FILE"
+    FRAMEWORK_LABEL=""
+    if [[ -n "$FRAMEWORK" ]]; then
+      FRAMEWORK_LABEL="$FRAMEWORK"
+    fi
+
+    RESULT_HEADER=$(printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Research**: %s' \
+      "$QUESTION" "$MODE" "$ROUND" "$RESEARCH_LABEL")
+    if [[ -n "$FRAMEWORK_LABEL" ]]; then
+      RESULT_HEADER=$(printf '%s\n**Framework**: %s' "$RESULT_HEADER" "$FRAMEWORK_LABEL")
+    fi
+    RESULT_HEADER=$(printf '%s\n**Date**: %s' "$RESULT_HEADER" "$TIMESTAMP")
+
+    printf '%s\n\n%s\n' "$RESULT_HEADER" "$LAST_OUTPUT" > "$RESULT_FILE"
 
     rm -f "$ANVIL_STATE_FILE"
     echo "Anvil debate complete. Result saved to .claude/anvil-result.local.md"
@@ -190,6 +202,12 @@ ROLE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/${NEXT_PHASE}.md" 2>/dev/null || echo ""
 
 # Read mode prompt
 MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo "")
+
+# Read framework template (synthesizer only)
+FRAMEWORK_PROMPT=""
+if [[ "$NEXT_PHASE" == "synthesizer" ]] && [[ -n "$FRAMEWORK" ]]; then
+  FRAMEWORK_PROMPT=$(cat "$PLUGIN_ROOT/prompts/frameworks/${FRAMEWORK}.md" 2>/dev/null || echo "")
+fi
 
 # Extract the debate transcript so far (everything after second ---)
 TRANSCRIPT_SO_FAR=$(awk '/^---$/{i++; next} i>=2' "$ANVIL_STATE_FILE")
@@ -281,7 +299,15 @@ fi
 # Build the full prompt
 FULL_PROMPT="$MODE_PROMPT
 
-$ROLE_PROMPT
+$ROLE_PROMPT"
+
+if [[ -n "$FRAMEWORK_PROMPT" ]]; then
+  FULL_PROMPT="$FULL_PROMPT
+
+$FRAMEWORK_PROMPT"
+fi
+
+FULL_PROMPT="$FULL_PROMPT
 $RESEARCH_BLOCK
 
 ---

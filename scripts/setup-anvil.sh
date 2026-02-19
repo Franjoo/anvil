@@ -12,6 +12,7 @@ MODE="analyst"
 ROUNDS=3
 POSITION=""
 RESEARCH=false
+FRAMEWORK=""
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -49,6 +50,14 @@ while [[ $# -gt 0 ]]; do
       RESEARCH=true
       shift
       ;;
+    --framework)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --framework requires a value (adr, pre-mortem, red-team, rfc, risks)" >&2
+        exit 1
+      fi
+      FRAMEWORK="$2"
+      shift 2
+      ;;
     *)
       QUESTION_PARTS+=("$1")
       shift
@@ -74,6 +83,17 @@ case "$MODE" in
     exit 1
     ;;
 esac
+
+# Validate framework
+if [[ -n "$FRAMEWORK" ]]; then
+  case "$FRAMEWORK" in
+    adr|pre-mortem|red-team|rfc|risks) ;;
+    *)
+      echo "Error: Invalid framework '$FRAMEWORK'. Must be one of: adr, pre-mortem, red-team, rfc, risks" >&2
+      exit 1
+      ;;
+  esac
+fi
 
 # Validate rounds
 if [[ "$ROUNDS" -lt 1 ]] || [[ "$ROUNDS" -gt 5 ]]; then
@@ -126,6 +146,7 @@ round: 1
 max_rounds: $ROUNDS
 phase: advocate
 research: $RESEARCH
+framework: $FRAMEWORK
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -145,6 +166,9 @@ echo "  Mode:      $MODE"
 echo "  Rounds:    $ROUNDS"
 if [[ -n "$POSITION" ]]; then
   echo "  Position:  $POSITION"
+fi
+if [[ -n "$FRAMEWORK" ]]; then
+  echo "  Framework: $FRAMEWORK"
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"

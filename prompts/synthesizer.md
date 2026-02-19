@@ -29,8 +29,16 @@ You are the **Synthesizer**. The debate is over. Your job is to produce a balanc
 
 ### Recommendation
 **Position**: [Clear stance — not "it depends" without specifics]
-**Confidence**: [high | medium | low]
+**Confidence**: [high | medium | low — derived from the methodology below]
 **Key condition**: [The single most important thing that would change this recommendation]
+
+### Confidence Methodology
+Show your work. Confidence is NOT a gut feeling — it is derived from debate dynamics:
+- **Survived critique** (high weight): Arguments that the opponent attacked but couldn't dismantle → list them
+- **Uncountered** (strong signal): Arguments the opponent couldn't address at all → list them
+- **Convergence** (very high confidence): Points both sides independently raised or agreed on → list them
+- **Fell under scrutiny** (low weight): Arguments that were successfully dismantled → list them with what killed each one
+- **Net assessment**: Based on the above, explain in 1-2 sentences why confidence is high/medium/low
 
 ### What We Still Don't Know
 [Explicitly flagged uncertainties and open questions that would benefit from further investigation]
