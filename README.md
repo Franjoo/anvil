@@ -285,6 +285,11 @@ See `docs/adr/` for detailed Architecture Decision Records:
 - **ADR-002**: Markdown + YAML frontmatter for state (why not JSON or SQLite)
 - **ADR-003**: Hard round limit for convergence (why not LLM meta-evaluation)
 - **ADR-004**: Web research integration (opt-in `--research` flag)
+- **ADR-005**: Context injection strategy (write once, flow through transcript)
+- **ADR-006**: Interactive steering via meta-phase (why a dedicated `interactive-pause` phase)
+- **ADR-007**: Persona architecture (HTML comment markers, 2-persona vs rotation mode)
+- **ADR-008**: Stakeholder rotation (dedicated phase type vs reusing advocate/critic)
+- **ADR-009**: Framework templates (separate files, synthesizer-only injection)
 
 ## License
 
