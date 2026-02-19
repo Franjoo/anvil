@@ -49,6 +49,7 @@ PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr 
 RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *//' | tr -d '\r')
 FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework: *//' | tr -d '\r')
 FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+CONTEXT_SOURCE=$(printf '%s\n' "$FRONTMATTER" | grep '^context_source:' | sed 's/context_source: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -178,6 +179,9 @@ case "$PHASE" in
     fi
     if [[ -n "$FOCUS" ]]; then
       RESULT_HEADER=$(printf '%s\n**Focus**: %s' "$RESULT_HEADER" "$FOCUS")
+    fi
+    if [[ -n "$CONTEXT_SOURCE" ]]; then
+      RESULT_HEADER=$(printf '%s\n**Context**: %s' "$RESULT_HEADER" "$CONTEXT_SOURCE")
     fi
     RESULT_HEADER=$(printf '%s\n**Date**: %s' "$RESULT_HEADER" "$TIMESTAMP")
 

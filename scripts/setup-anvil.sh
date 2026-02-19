@@ -14,6 +14,9 @@ POSITION=""
 RESEARCH=false
 FRAMEWORK=""
 FOCUS=""
+CONTEXT_PATHS=()
+CONTEXT_PR=""
+CONTEXT_DIFF=false
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -67,6 +70,30 @@ while [[ $# -gt 0 ]]; do
       FOCUS="$2"
       shift 2
       ;;
+    --context)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --context requires a path (file or directory)" >&2
+        exit 1
+      fi
+      CONTEXT_PATHS+=("$2")
+      shift 2
+      ;;
+    --pr)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --pr requires a PR number" >&2
+        exit 1
+      fi
+      if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+        echo "Error: --pr must be a number (got: '$2')" >&2
+        exit 1
+      fi
+      CONTEXT_PR="$2"
+      shift 2
+      ;;
+    --diff)
+      CONTEXT_DIFF=true
+      shift
+      ;;
     *)
       QUESTION_PARTS+=("$1")
       shift
@@ -118,6 +145,154 @@ if [[ "$MODE" == "devils-advocate" ]] && [[ -z "$POSITION" ]]; then
   exit 1
 fi
 
+# --- Context Generation ---
+
+CONTEXT_MAX_CHARS=5000
+CONTEXT_BODY=""
+CONTEXT_SOURCE=""
+
+# Generate context summary for a directory
+generate_dir_context() {
+  local dir_path="$1"
+  local output=""
+
+  # File tree (max depth 3, truncated)
+  output+="### Directory: $dir_path"$'\n\n'
+  output+='```'$'\n'
+  if command -v tree >/dev/null 2>&1; then
+    output+="$(tree -L 3 --noreport "$dir_path" 2>/dev/null | head -50)"
+  else
+    output+="$(find "$dir_path" -maxdepth 3 -type f 2>/dev/null | sort | head -50)"
+  fi
+  output+=$'\n''```'$'\n\n'
+
+  # Key declarations (language-agnostic heuristic)
+  output+="**Key declarations:**"$'\n''```'$'\n'
+  output+="$(grep -rn --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+    --include='*.py' --include='*.go' --include='*.rs' --include='*.java' --include='*.rb' \
+    --include='*.swift' --include='*.kt' --include='*.cs' --include='*.sh' \
+    -E '^\s*(export\s+)?(class |interface |type |enum |function |def |fn |func |pub |struct |trait |const |let |var |async function )' \
+    "$dir_path" 2>/dev/null | head -40 || echo "(no declarations found)")"
+  output+=$'\n''```'$'\n'
+
+  printf '%s' "$output"
+}
+
+# Generate context summary for a file
+generate_file_context() {
+  local file_path="$1"
+  local output=""
+  local line_count
+  line_count=$(wc -l < "$file_path" 2>/dev/null | tr -d ' ' || echo "0")
+
+  output+="### File: $file_path ($line_count lines)"$'\n\n'
+  output+='```'$'\n'
+  if [[ "$line_count" -gt 150 ]]; then
+    output+="$(head -150 "$file_path")"
+    output+=$'\n'"... (truncated, $line_count total lines)"
+  else
+    output+="$(cat "$file_path")"
+  fi
+  output+=$'\n''```'$'\n'
+
+  printf '%s' "$output"
+}
+
+# Generate context from PR diff
+generate_pr_context() {
+  local pr_num="$1"
+  local output=""
+
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "Error: --pr requires the GitHub CLI (gh). Install with: brew install gh" >&2
+    exit 1
+  fi
+
+  output+="### PR #$pr_num"$'\n\n'
+
+  # Get PR title and body
+  local pr_info
+  pr_info=$(gh pr view "$pr_num" --json title,body --jq '"**" + .title + "**\n\n" + .body' 2>/dev/null || echo "(could not fetch PR info)")
+  output+="$pr_info"$'\n\n'
+
+  output+='```diff'$'\n'
+  output+="$(gh pr diff "$pr_num" 2>/dev/null | head -300 || echo "(could not fetch PR diff)")"
+  output+=$'\n''```'$'\n'
+
+  printf '%s' "$output"
+}
+
+# Generate context from uncommitted changes
+generate_diff_context() {
+  local output=""
+
+  output+="### Uncommitted Changes"$'\n\n'
+  output+='```diff'$'\n'
+
+  local staged
+  staged=$(git diff --cached 2>/dev/null || echo "")
+  local unstaged
+  unstaged=$(git diff 2>/dev/null || echo "")
+
+  if [[ -n "$staged" ]]; then
+    output+="# Staged changes:"$'\n'
+    output+="$(printf '%s' "$staged" | head -200)"$'\n'
+  fi
+  if [[ -n "$unstaged" ]]; then
+    output+="# Unstaged changes:"$'\n'
+    output+="$(printf '%s' "$unstaged" | head -200)"$'\n'
+  fi
+  if [[ -z "$staged" ]] && [[ -z "$unstaged" ]]; then
+    output+="(no uncommitted changes)"$'\n'
+  fi
+
+  output+=$'\n''```'$'\n'
+
+  printf '%s' "$output"
+}
+
+# Build context if any context source specified
+HAS_CONTEXT=false
+if [[ ${#CONTEXT_PATHS[@]} -gt 0 ]] || [[ -n "$CONTEXT_PR" ]] || [[ "$CONTEXT_DIFF" == "true" ]]; then
+  HAS_CONTEXT=true
+  CONTEXT_BODY="## Codebase Context"$'\n'
+
+  # Process --context paths
+  for ctx_path in "${CONTEXT_PATHS[@]+"${CONTEXT_PATHS[@]}"}"; do
+    if [[ ! -e "$ctx_path" ]]; then
+      echo "Error: Context path not found: $ctx_path" >&2
+      exit 1
+    fi
+    if [[ -d "$ctx_path" ]]; then
+      CONTEXT_BODY+=$'\n'"$(generate_dir_context "$ctx_path")"$'\n'
+      CONTEXT_SOURCE+="${ctx_path} "
+    elif [[ -f "$ctx_path" ]]; then
+      CONTEXT_BODY+=$'\n'"$(generate_file_context "$ctx_path")"$'\n'
+      CONTEXT_SOURCE+="${ctx_path} "
+    fi
+  done
+
+  # Process --pr
+  if [[ -n "$CONTEXT_PR" ]]; then
+    CONTEXT_BODY+=$'\n'"$(generate_pr_context "$CONTEXT_PR")"$'\n'
+    CONTEXT_SOURCE+="PR #${CONTEXT_PR} "
+  fi
+
+  # Process --diff
+  if [[ "$CONTEXT_DIFF" == "true" ]]; then
+    CONTEXT_BODY+=$'\n'"$(generate_diff_context)"$'\n'
+    CONTEXT_SOURCE+="uncommitted diff "
+  fi
+
+  # Truncate context if too long
+  CONTEXT_LEN=${#CONTEXT_BODY}
+  if [[ "$CONTEXT_LEN" -gt "$CONTEXT_MAX_CHARS" ]]; then
+    CONTEXT_BODY="${CONTEXT_BODY:0:$CONTEXT_MAX_CHARS}"$'\n\n'"*... (context truncated at $CONTEXT_MAX_CHARS chars)*"
+  fi
+
+  CONTEXT_SOURCE=$(printf '%s' "$CONTEXT_SOURCE" | sed 's/ $//')
+fi
+
 # Check for existing active debate
 ANVIL_STATE_FILE=".claude/anvil-state.local.md"
 if [[ -f "$ANVIL_STATE_FILE" ]]; then
@@ -157,9 +332,15 @@ phase: advocate
 research: $RESEARCH
 framework: $FRAMEWORK
 focus: "$FOCUS"
+context_source: "$CONTEXT_SOURCE"
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
+
+# Append context to state file body (before any rounds)
+if [[ "$HAS_CONTEXT" == "true" ]]; then
+  printf '\n%s\n' "$CONTEXT_BODY" >> "$ANVIL_STATE_FILE"
+fi
 
 # Read the initial advocate prompt
 ADVOCATE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/advocate.md")
@@ -182,6 +363,9 @@ if [[ -n "$FRAMEWORK" ]]; then
 fi
 if [[ -n "$FOCUS" ]]; then
   echo "  Focus:     $FOCUS"
+fi
+if [[ "$HAS_CONTEXT" == "true" ]]; then
+  echo "  Context:   $CONTEXT_SOURCE"
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"
@@ -207,6 +391,10 @@ echo "**Question under debate:** $QUESTION"
 if [[ -n "$POSITION" ]]; then
   echo ""
   echo "**User's stated position:** $POSITION"
+fi
+if [[ "$HAS_CONTEXT" == "true" ]]; then
+  echo ""
+  printf '%s\n' "$CONTEXT_BODY"
 fi
 if [[ -n "$FOCUS" ]]; then
   echo ""

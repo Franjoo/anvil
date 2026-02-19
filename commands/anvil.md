@@ -1,6 +1,6 @@
 ---
 description: "Start an adversarial debate to stress-test an idea"
-argument-hint: "QUESTION [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position TEXT] [--research] [--framework adr|pre-mortem|red-team|rfc|risks] [--focus LENS]"
+argument-hint: "QUESTION [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position TEXT] [--research] [--framework adr|pre-mortem|red-team|rfc|risks] [--focus LENS] [--context PATH] [--pr N] [--diff]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-anvil.sh:*)"]
 hide-from-slash-command-tool: "true"
 ---
