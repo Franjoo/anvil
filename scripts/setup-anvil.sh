@@ -11,6 +11,7 @@ PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="analyst"
 ROUNDS=3
 POSITION=""
+RESEARCH=false
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       fi
       POSITION="$2"
       shift 2
+      ;;
+    --research)
+      RESEARCH=true
+      shift
       ;;
     *)
       QUESTION_PARTS+=("$1")
@@ -120,6 +125,7 @@ position: $POSITION_YAML
 round: 1
 max_rounds: $ROUNDS
 phase: advocate
+research: $RESEARCH
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -139,6 +145,9 @@ echo "  Mode:      $MODE"
 echo "  Rounds:    $ROUNDS"
 if [[ -n "$POSITION" ]]; then
   echo "  Position:  $POSITION"
+fi
+if [[ "$RESEARCH" == "true" ]]; then
+  echo "  Research:  ENABLED (WebSearch + WebFetch)"
 fi
 echo ""
 echo "  Phase:     ADVOCATE (Round 1 of $ROUNDS)"
@@ -161,6 +170,18 @@ echo "**Question under debate:** $QUESTION"
 if [[ -n "$POSITION" ]]; then
   echo ""
   echo "**User's stated position:** $POSITION"
+fi
+if [[ "$RESEARCH" == "true" ]]; then
+  echo ""
+  echo "## Research Mode ENABLED"
+  echo ""
+  echo "Before constructing your argument, use **WebSearch** to research the topic. Ground your claims in real evidence:"
+  echo "- Search for relevant data, studies, benchmarks, and case studies"
+  echo "- Look for real-world examples that support your position"
+  echo "- Find specific numbers, dates, and facts — not vague generalities"
+  echo "- Cite your sources inline: [Source Title](URL)"
+  echo ""
+  echo "Perform at least 2-3 targeted searches before writing your argument. Quality of evidence matters more than quantity."
 fi
 echo ""
 echo "This is Round 1. No prior debate context yet. Begin your argument."

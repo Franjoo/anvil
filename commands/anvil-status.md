@@ -19,4 +19,5 @@ Check the current debate status:
      - **Mode**: the `mode` field
      - **Phase**: the `phase` field (advocate/critic/synthesizer)
      - **Round**: `round` of `max_rounds`
+     - **Research**: the `research` field (true/false)
      - **Started**: the `started_at` field

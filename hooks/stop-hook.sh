@@ -46,6 +46,7 @@ POSITION=$(printf '%s\n' "$FRONTMATTER" | grep '^position:' | sed 's/position: *
 ROUND=$(printf '%s\n' "$FRONTMATTER" | grep '^round:' | sed 's/round: *//' | tr -d '\r')
 MAX_ROUNDS=$(printf '%s\n' "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rounds: *//' | tr -d '\r')
 PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d '\r')
+RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *//' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -188,10 +189,51 @@ MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo ""
 # Extract the debate transcript so far (everything after second ---)
 TRANSCRIPT_SO_FAR=$(awk '/^---$/{i++; next} i>=2' "$ANVIL_STATE_FILE")
 
+# Build research instructions if enabled
+RESEARCH_BLOCK=""
+if [[ "$RESEARCH" == "true" ]]; then
+  if [[ "$NEXT_PHASE" == "advocate" ]]; then
+    RESEARCH_BLOCK="
+## Research Mode ENABLED
+
+Before constructing your argument, use **WebSearch** to research the topic. Ground your claims in real evidence:
+- Search for data, studies, benchmarks, and case studies that SUPPORT your position
+- Look for real-world examples and success stories
+- Find specific numbers, dates, and facts — not vague generalities
+- Cite your sources inline: [Source Title](URL)
+
+Perform at least 2-3 targeted searches. Respond to the Critic's points from the previous round with researched counter-evidence where possible."
+  elif [[ "$NEXT_PHASE" == "critic" ]]; then
+    RESEARCH_BLOCK="
+## Research Mode ENABLED
+
+Before constructing your critique, use **WebSearch** to research counter-evidence. Ground your critique in real evidence:
+- Search for data that CONTRADICTS the Advocate's claims
+- Look for failure cases, counter-examples, and cautionary tales
+- Fact-check specific claims the Advocate made — verify or debunk them
+- Find alternative perspectives and competing studies
+- Cite your sources inline: [Source Title](URL)
+
+Perform at least 2-3 targeted searches. If the Advocate cited sources, verify their accuracy."
+  elif [[ "$NEXT_PHASE" == "synthesizer" ]]; then
+    RESEARCH_BLOCK="
+## Research Mode ENABLED
+
+Before synthesizing, use **WebSearch** to fact-check the strongest claims from both sides:
+- Verify key statistics and data points cited during the debate
+- Check if cited sources actually support the claims made
+- Search for any major perspective that BOTH sides missed
+- Cite your sources inline: [Source Title](URL)
+
+Perform 1-2 targeted verification searches. Your synthesis should note which cited evidence held up and which didn't."
+  fi
+fi
+
 # Build the full prompt
 FULL_PROMPT="$MODE_PROMPT
 
 $ROLE_PROMPT
+$RESEARCH_BLOCK
 
 ---
 

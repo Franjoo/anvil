@@ -2,7 +2,7 @@
 
 Adversarial thinking plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Stress-test ideas through structured debates.
 
-Anvil is a **thinking tool**, not a research tool. It forces rigorous examination of propositions by rotating through Advocate, Critic, and Synthesizer phases — each with distinct role prompts that demand genuine adversarial positions.
+Anvil is a **thinking tool** that forces rigorous examination of propositions by rotating through Advocate, Critic, and Synthesizer phases — each with distinct role prompts that demand genuine adversarial positions. With `--research` enabled, arguments are grounded in real-time web research.
 
 The name: an anvil is what you hammer arguments against to shape them.
 
@@ -30,7 +30,7 @@ claude plugins add ./anvil
 ### Options
 
 ```
-/anvil "question" [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position "TEXT"]
+/anvil "question" [--mode analyst|philosopher|devils-advocate] [--rounds N] [--position "TEXT"] [--research]
 ```
 
 | Option | Default | Description |
@@ -38,6 +38,7 @@ claude plugins add ./anvil
 | `--mode` | `analyst` | Debate style (see modes below) |
 | `--rounds` | `3` | Number of advocate/critic rounds (1-5) |
 | `--position` | — | Your stance (required for `devils-advocate` mode) |
+| `--research` | off | Enable web research for evidence-grounded arguments |
 
 ### Check status
 
@@ -67,6 +68,14 @@ Socratic exploration using first-principles reasoning. Thought experiments, ethi
 
 ```
 /anvil "Is AI-generated code really 'your' code?" --mode philosopher
+```
+
+### With Research
+
+Enable `--research` to ground arguments in real-time web searches. Each phase performs targeted research: Advocate searches for supporting evidence, Critic for counter-evidence, Synthesizer fact-checks both.
+
+```
+/anvil "Should we adopt Rust for our backend services?" --mode analyst --research
 ```
 
 ### Devil's Advocate
@@ -151,6 +160,7 @@ See `docs/adr/` for detailed Architecture Decision Records:
 - **ADR-001**: Stop hook orchestration (why not single prompt or subagents)
 - **ADR-002**: Markdown + YAML frontmatter for state (why not JSON or SQLite)
 - **ADR-003**: Hard round limit for convergence (why not LLM meta-evaluation)
+- **ADR-004**: Web research integration (opt-in `--research` flag)
 
 ## License
 
