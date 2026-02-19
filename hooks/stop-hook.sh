@@ -48,6 +48,7 @@ MAX_ROUNDS=$(printf '%s\n' "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rou
 PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d '\r')
 RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *//' | tr -d '\r')
 FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework: *//' | tr -d '\r')
+FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
 
 # Validate state
 if [[ "$ACTIVE" != "true" ]]; then
@@ -174,6 +175,9 @@ case "$PHASE" in
       "$QUESTION" "$MODE" "$ROUND" "$RESEARCH_LABEL")
     if [[ -n "$FRAMEWORK_LABEL" ]]; then
       RESULT_HEADER=$(printf '%s\n**Framework**: %s' "$RESULT_HEADER" "$FRAMEWORK_LABEL")
+    fi
+    if [[ -n "$FOCUS" ]]; then
+      RESULT_HEADER=$(printf '%s\n**Focus**: %s' "$RESULT_HEADER" "$FOCUS")
     fi
     RESULT_HEADER=$(printf '%s\n**Date**: %s' "$RESULT_HEADER" "$TIMESTAMP")
 
@@ -305,6 +309,39 @@ if [[ -n "$FRAMEWORK_PROMPT" ]]; then
   FULL_PROMPT="$FULL_PROMPT
 
 $FRAMEWORK_PROMPT"
+fi
+
+# Inject focus lens for advocate and critic phases
+if [[ -n "$FOCUS" ]] && [[ "$NEXT_PHASE" != "synthesizer" ]]; then
+  FOCUS_DESCRIPTION=""
+  case "$FOCUS" in
+    security)
+      FOCUS_DESCRIPTION="Attack surface, vulnerabilities, compliance, data exposure, authentication/authorization, supply chain risks." ;;
+    performance)
+      FOCUS_DESCRIPTION="Latency, throughput, resource consumption, scalability limits, bottlenecks, caching implications." ;;
+    developer-experience)
+      FOCUS_DESCRIPTION="Learning curve, tooling ecosystem, debugging experience, documentation quality, onboarding time, API ergonomics." ;;
+    operational-cost)
+      FOCUS_DESCRIPTION="Infrastructure costs, maintenance burden, licensing, required team size, hidden operational overhead." ;;
+    maintainability)
+      FOCUS_DESCRIPTION="Code complexity, coupling, testability, upgrade path, technical debt trajectory, bus factor." ;;
+    *)
+      FOCUS_DESCRIPTION="" ;;
+  esac
+
+  FULL_PROMPT="$FULL_PROMPT
+
+## Focus Lens: $FOCUS
+
+CONSTRAIN your argument to this evaluation dimension. Do not address other dimensions unless they directly intersect with this focus."
+
+  if [[ -n "$FOCUS_DESCRIPTION" ]]; then
+    FULL_PROMPT="$FULL_PROMPT
+Evaluate through: $FOCUS_DESCRIPTION"
+  else
+    FULL_PROMPT="$FULL_PROMPT
+Evaluate exclusively through the lens of: **$FOCUS**"
+  fi
 fi
 
 FULL_PROMPT="$FULL_PROMPT

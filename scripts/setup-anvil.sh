@@ -13,6 +13,7 @@ ROUNDS=3
 POSITION=""
 RESEARCH=false
 FRAMEWORK=""
+FOCUS=""
 QUESTION_PARTS=()
 
 # Parse arguments
@@ -56,6 +57,14 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       FRAMEWORK="$2"
+      shift 2
+      ;;
+    --focus)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --focus requires a value (security, performance, developer-experience, operational-cost, maintainability, or custom)" >&2
+        exit 1
+      fi
+      FOCUS="$2"
       shift 2
       ;;
     *)
@@ -147,6 +156,7 @@ max_rounds: $ROUNDS
 phase: advocate
 research: $RESEARCH
 framework: $FRAMEWORK
+focus: "$FOCUS"
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -169,6 +179,9 @@ if [[ -n "$POSITION" ]]; then
 fi
 if [[ -n "$FRAMEWORK" ]]; then
   echo "  Framework: $FRAMEWORK"
+fi
+if [[ -n "$FOCUS" ]]; then
+  echo "  Focus:     $FOCUS"
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo "  Research:  ENABLED (WebSearch + WebFetch)"
@@ -194,6 +207,27 @@ echo "**Question under debate:** $QUESTION"
 if [[ -n "$POSITION" ]]; then
   echo ""
   echo "**User's stated position:** $POSITION"
+fi
+if [[ -n "$FOCUS" ]]; then
+  echo ""
+  echo "## Focus Lens: $FOCUS"
+  echo ""
+  echo "CONSTRAIN your argument to this evaluation dimension. Do not address other dimensions unless they directly intersect with this focus."
+  echo ""
+  case "$FOCUS" in
+    security)
+      echo "Evaluate through: Attack surface, vulnerabilities, compliance, data exposure, authentication/authorization, supply chain risks." ;;
+    performance)
+      echo "Evaluate through: Latency, throughput, resource consumption, scalability limits, bottlenecks, caching implications." ;;
+    developer-experience)
+      echo "Evaluate through: Learning curve, tooling ecosystem, debugging experience, documentation quality, onboarding time, API ergonomics." ;;
+    operational-cost)
+      echo "Evaluate through: Infrastructure costs, maintenance burden, licensing, required team size, hidden operational overhead." ;;
+    maintainability)
+      echo "Evaluate through: Code complexity, coupling, testability, upgrade path, technical debt trajectory, bus factor." ;;
+    *)
+      echo "Evaluate exclusively through the lens of: **$FOCUS**" ;;
+  esac
 fi
 if [[ "$RESEARCH" == "true" ]]; then
   echo ""
