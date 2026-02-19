@@ -176,12 +176,29 @@ if [[ "$RESEARCH" == "true" ]]; then
   echo "## Research Mode ENABLED"
   echo ""
   echo "Before constructing your argument, use **WebSearch** to research the topic. Ground your claims in real evidence:"
-  echo "- Search for relevant data, studies, benchmarks, and case studies"
-  echo "- Look for real-world examples that support your position"
-  echo "- Find specific numbers, dates, and facts — not vague generalities"
+  case "$MODE" in
+    analyst)
+      echo "- Search for relevant data, studies, benchmarks, and case studies"
+      echo "- Look for real-world examples that support your position"
+      echo "- Find specific numbers, dates, and measurable outcomes — not vague generalities"
+      ;;
+    philosopher)
+      echo "- Search for philosophical arguments, frameworks, and thinkers that support your position"
+      echo "- Look for historical precedents and analogous ethical dilemmas"
+      echo "- Find thought experiments or academic papers that illuminate your thesis"
+      ;;
+    devils-advocate)
+      echo "- Search for evidence that UNDERMINES the user's stated position"
+      echo "- Look for failure cases, risks, and overlooked consequences"
+      echo "- Find real-world examples where similar positions turned out wrong"
+      ;;
+  esac
   echo "- Cite your sources inline: [Source Title](URL)"
+  echo "- PREFER researched evidence with real URLs over claims from memory"
   echo ""
   echo "Perform at least 2-3 targeted searches before writing your argument. Quality of evidence matters more than quantity."
+  echo ""
+  echo "If WebSearch is unavailable in this session, proceed without research and note that evidence is based on training data only."
 fi
 echo ""
 echo "This is Round 1. No prior debate context yet. Begin your argument."

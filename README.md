@@ -40,6 +40,8 @@ claude plugins add ./anvil
 | `--position` | — | Your stance (required for `devils-advocate` mode) |
 | `--research` | off | Enable web research for evidence-grounded arguments |
 
+> **Tip:** With `--research`, each phase performs 2-3 web searches, increasing latency but grounding arguments in real evidence. For deep research debates, consider using fewer rounds (`--rounds 2 --research`) to manage context window usage.
+
 ### Check status
 
 ```

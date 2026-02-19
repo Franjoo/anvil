@@ -159,8 +159,13 @@ case "$PHASE" in
     RESULT_FILE=".claude/anvil-result.local.md"
     TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-    printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Date**: %s\n\n%s\n' \
-      "$QUESTION" "$MODE" "$ROUND" "$TIMESTAMP" "$LAST_OUTPUT" > "$RESULT_FILE"
+    RESEARCH_LABEL="no"
+    if [[ "$RESEARCH" == "true" ]]; then
+      RESEARCH_LABEL="yes"
+    fi
+
+    printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Research**: %s\n**Date**: %s\n\n%s\n' \
+      "$QUESTION" "$MODE" "$ROUND" "$RESEARCH_LABEL" "$TIMESTAMP" "$LAST_OUTPUT" > "$RESULT_FILE"
 
     rm -f "$ANVIL_STATE_FILE"
     echo "Anvil debate complete. Result saved to .claude/anvil-result.local.md"
@@ -189,43 +194,87 @@ MODE_PROMPT=$(cat "$PLUGIN_ROOT/prompts/modes/${MODE}.md" 2>/dev/null || echo ""
 # Extract the debate transcript so far (everything after second ---)
 TRANSCRIPT_SO_FAR=$(awk '/^---$/{i++; next} i>=2' "$ANVIL_STATE_FILE")
 
-# Build research instructions if enabled
+# Build research instructions if enabled (mode-aware)
 RESEARCH_BLOCK=""
 if [[ "$RESEARCH" == "true" ]]; then
+  # Mode-specific research guidance
+  RESEARCH_FOCUS=""
+  case "$MODE" in
+    analyst)
+      RESEARCH_FOCUS_ADVOCATE="- Search for data, studies, benchmarks, and case studies that SUPPORT your position
+- Look for real-world examples, success stories, and adoption metrics
+- Find specific numbers, dates, and measurable outcomes — not vague generalities"
+      RESEARCH_FOCUS_CRITIC="- Search for data that CONTRADICTS the Advocate's claims
+- Look for failure cases, counter-examples, and cautionary tales
+- Fact-check specific claims the Advocate made — verify or debunk them
+- Find alternative perspectives and competing studies"
+      RESEARCH_FOCUS_SYNTH="- Verify key statistics and data points cited during the debate
+- Check if cited sources actually support the claims made
+- If a claim lacks a source, search to confirm or refute it"
+      ;;
+    philosopher)
+      RESEARCH_FOCUS_ADVOCATE="- Search for philosophical arguments, frameworks, and thinkers that support your position
+- Look for historical precedents and analogous ethical dilemmas
+- Find thought experiments or academic papers that illuminate your thesis
+- Search for how this question has been debated in philosophy, ethics, or social theory"
+      RESEARCH_FOCUS_CRITIC="- Search for philosophical counter-arguments and opposing frameworks
+- Look for historical cases where similar reasoning led to problematic outcomes
+- Find critiques of the frameworks the Advocate relied on
+- Search for thinkers who have argued against this position"
+      RESEARCH_FOCUS_SYNTH="- Verify if cited philosophical arguments and thinkers are accurately represented
+- Check if historical precedents cited actually support the claims made
+- Search for any major philosophical framework that both sides overlooked"
+      ;;
+    devils-advocate)
+      RESEARCH_FOCUS_ADVOCATE="- Search for evidence that UNDERMINES the user's stated position
+- Look for failure cases, risks, and overlooked consequences
+- Find real-world examples where similar positions turned out wrong
+- Search for the strongest arguments against the user's stance"
+      RESEARCH_FOCUS_CRITIC="- Search for evidence that SUPPORTS and DEFENDS the user's position
+- Look for success stories and data that validate the user's stance
+- Fact-check the Advocate's attacks — find where they're wrong or exaggerated
+- Search for rebuttals to the specific arguments the Advocate raised"
+      RESEARCH_FOCUS_SYNTH="- Verify key claims from both the attacks and the defense
+- Check if cited sources actually support the claims made
+- If a claim lacks a source, search to confirm or refute it"
+      ;;
+  esac
+
   if [[ "$NEXT_PHASE" == "advocate" ]]; then
     RESEARCH_BLOCK="
 ## Research Mode ENABLED
 
 Before constructing your argument, use **WebSearch** to research the topic. Ground your claims in real evidence:
-- Search for data, studies, benchmarks, and case studies that SUPPORT your position
-- Look for real-world examples and success stories
-- Find specific numbers, dates, and facts — not vague generalities
+$RESEARCH_FOCUS_ADVOCATE
 - Cite your sources inline: [Source Title](URL)
+- PREFER researched evidence with real URLs over claims from memory
 
-Perform at least 2-3 targeted searches. Respond to the Critic's points from the previous round with researched counter-evidence where possible."
+Perform at least 2-3 targeted searches. Respond to the Critic's points from the previous round with researched counter-evidence where possible.
+
+If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
   elif [[ "$NEXT_PHASE" == "critic" ]]; then
     RESEARCH_BLOCK="
 ## Research Mode ENABLED
 
 Before constructing your critique, use **WebSearch** to research counter-evidence. Ground your critique in real evidence:
-- Search for data that CONTRADICTS the Advocate's claims
-- Look for failure cases, counter-examples, and cautionary tales
-- Fact-check specific claims the Advocate made — verify or debunk them
-- Find alternative perspectives and competing studies
+$RESEARCH_FOCUS_CRITIC
 - Cite your sources inline: [Source Title](URL)
+- PREFER researched evidence with real URLs over claims from memory
 
-Perform at least 2-3 targeted searches. If the Advocate cited sources, verify their accuracy."
+Perform at least 2-3 targeted searches. If the Advocate cited sources, verify their accuracy.
+
+If WebSearch is unavailable, proceed without research and note that evidence is based on training data only."
   elif [[ "$NEXT_PHASE" == "synthesizer" ]]; then
     RESEARCH_BLOCK="
 ## Research Mode ENABLED
 
-Before synthesizing, use **WebSearch** to fact-check the strongest claims from both sides:
-- Verify key statistics and data points cited during the debate
-- Check if cited sources actually support the claims made
-- Search for any major perspective that BOTH sides missed
-- Cite your sources inline: [Source Title](URL)
+Before synthesizing, use **WebSearch** to VERIFY claims from both sides. You are NOT introducing new arguments — you are fact-checking the debate:
+$RESEARCH_FOCUS_SYNTH
+- Cite your verification sources inline: [Source Title](URL)
 
-Perform 1-2 targeted verification searches. Your synthesis should note which cited evidence held up and which didn't."
+Perform 1-2 targeted verification searches. In your synthesis, explicitly note which evidence held up under scrutiny and which didn't. Do NOT add new perspectives — only assess what was already argued.
+
+If WebSearch is unavailable, proceed without research and note that claims could not be independently verified."
   fi
 fi
 
