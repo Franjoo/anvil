@@ -4,6 +4,12 @@
   "description": "Adversarial thinking plugin for Claude Code — stress-test ideas through structured debates",
   "private": true,
   "scripts": {
+    "test": "./tests/lib/bats-core/bin/bats tests/setup-anvil/ tests/stop-hook/ tests/integration/",
+    "test:setup": "./tests/lib/bats-core/bin/bats tests/setup-anvil/",
+    "test:hook": "./tests/lib/bats-core/bin/bats tests/stop-hook/",
+    "test:integration": "./tests/lib/bats-core/bin/bats tests/integration/",
+    "lint": "shellcheck -s bash scripts/setup-anvil.sh hooks/stop-hook.sh",
+    "check": "bun run lint && bun run test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

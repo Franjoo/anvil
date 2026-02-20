@@ -1,0 +1,13 @@
+# Shellcheck configuration for Anvil
+# https://www.shellcheck.net/wiki/
+
+# Allow sourcing from paths determined at runtime
+# (bats tests use dynamic load paths)
+external-sources=true
+
+# Shell dialect
+shell=bash
+
+# SC2034: Variable appears unused — we parse frontmatter into variables
+# that are used for state tracking and updated via awk
+disable=SC2034

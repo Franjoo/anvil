@@ -148,7 +148,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-QUESTION="${QUESTION_PARTS[*]}"
+QUESTION="${QUESTION_PARTS[*]:-}"
 
 # Validate --follow-up file
 if [[ -n "$FOLLOW_UP" ]]; then
