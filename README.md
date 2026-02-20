@@ -272,10 +272,28 @@ anvil/
 |       +-- startup-cfo.md        # Startup CFO persona
 |       +-- junior-developer.md   # Junior developer persona
 |       +-- end-user.md           # End user persona
++-- tests/
+|   +-- helpers/                  # Shared test utilities
+|   +-- setup-anvil/              # setup-anvil.sh tests
+|   +-- stop-hook/                # stop-hook.sh tests
+|   +-- integration/              # End-to-end + shellcheck
+|   +-- lib/                      # bats-core/support/assert (submodules)
 +-- docs/adr/                     # Architecture Decision Records
 ```
 
 No TypeScript, no build step. The prompts ARE the product. Shell scripts orchestrate, markdown prompts instruct.
+
+## Development
+
+```bash
+bun run check        # shellcheck + all tests
+bun run test         # all bats tests
+bun run test:setup   # setup-anvil.sh tests only
+bun run test:hook    # stop-hook.sh tests only
+bun run lint         # shellcheck only
+```
+
+Tests use [bats-core](https://github.com/bats-core/bats-core) (Bash Automated Testing System). No additional dependencies — bats is vendored as git submodules.
 
 ## Design Decisions
 
