@@ -20,6 +20,15 @@ A Claude Code plugin that enables adversarial thinking through structured debate
 - `prompts/modes/{analyst,philosopher,devils-advocate}.md` — Mode-specific tone
 - `commands/anvil.md` — Entry point command
 
+## Documentation
+
+When a change affects user-facing behavior (new flags, new features, changed defaults, new modes/frameworks/personas), update `README.md` accordingly:
+
+- **New CLI flag**: Add to the options table and, if significant, add a section under Features
+- **New mode/framework/persona preset**: Add to the relevant Features section with an example
+- **Changed behavior**: Update any affected descriptions, examples, or the debate flow diagram
+- **New script/file**: Update the Architecture tree if it's a top-level addition
+
 ## Conventions
 
 - ADRs in `docs/adr/` for architectural decisions
