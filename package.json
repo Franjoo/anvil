@@ -1,6 +1,6 @@
 {
   "name": "anvil",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Adversarial thinking plugin for Claude Code — stress-test ideas through structured debates",
   "private": true,
   "scripts": {
