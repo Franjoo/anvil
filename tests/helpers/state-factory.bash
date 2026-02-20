@@ -53,6 +53,23 @@ create_state_file() {
     esac
   done
 
+  # Escape YAML double-quoted values (mirrors setup-anvil.sh yaml_escape)
+  _test_yaml_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"    # \ → \\  (must be first)
+    s="${s//\"/\\\"}"    # " → \"
+    s="${s//$'\n'/\\n}"  # newline → \n
+    s="${s//$'\t'/\\t}"  # tab → \t
+    s="${s//$'\r'/\\r}"  # CR → \r
+    printf '%s' "$s"
+  }
+  local esc_focus esc_stakeholders esc_personas esc_context_source esc_follow_up
+  esc_focus=$(_test_yaml_escape "$focus")
+  esc_stakeholders=$(_test_yaml_escape "$stakeholders")
+  esc_personas=$(_test_yaml_escape "$personas")
+  esc_context_source=$(_test_yaml_escape "$context_source")
+  esc_follow_up=$(_test_yaml_escape "$follow_up")
+
   local state_file="${TEST_DIR}/.claude/anvil-state.local.md"
   mkdir -p "$(dirname "$state_file")"
 
@@ -67,14 +84,14 @@ max_rounds: $max_rounds
 phase: $phase
 research: $research
 framework: $framework
-focus: "$focus"
-context_source: "$context_source"
-follow_up: "$follow_up"
+focus: "$esc_focus"
+context_source: "$esc_context_source"
+follow_up: "$esc_follow_up"
 versus: $versus
 interactive: $interactive
-stakeholders: "$stakeholders"
+stakeholders: "$esc_stakeholders"
 stakeholder_index: $stakeholder_index
-personas: "$personas"
+personas: "$esc_personas"
 started_at: "$started_at"
 ---
 EOF

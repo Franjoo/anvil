@@ -44,9 +44,18 @@ get_frontmatter() {
   local field="$1"
   local file="$2"
   awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "$file" \
-    | grep "^${field}:" \
+    | { grep "^${field}:" || true; } \
     | sed "s/^${field}: *//" \
     | sed 's/^"\(.*\)"$/\1/' \
+    | awk '{
+        gsub(/\\\\/, "\x01")
+        gsub(/\\"/, "\"")
+        gsub(/\\n/, "\n")
+        gsub(/\\t/, "\t")
+        gsub(/\\r/, "\r")
+        gsub(/\x01/, "\\")
+        printf "%s", $0
+      }' \
     | tr -d '\r'
 }
 

@@ -39,22 +39,37 @@ capitalize() {
 # Parse YAML frontmatter (only lines between first and second ---)
 FRONTMATTER=$(awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "$ANVIL_STATE_FILE")
 
-ACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^active:' | sed 's/active: *//' | tr -d '\r')
-QUESTION=$(printf '%s\n' "$FRONTMATTER" | grep '^question:' | sed 's/question: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
-MODE=$(printf '%s\n' "$FRONTMATTER" | grep '^mode:' | sed 's/mode: *//' | tr -d '\r')
-POSITION=$(printf '%s\n' "$FRONTMATTER" | grep '^position:' | sed 's/position: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
-ROUND=$(printf '%s\n' "$FRONTMATTER" | grep '^round:' | sed 's/round: *//' | tr -d '\r')
-MAX_ROUNDS=$(printf '%s\n' "$FRONTMATTER" | grep '^max_rounds:' | sed 's/max_rounds: *//' | tr -d '\r')
-PHASE=$(printf '%s\n' "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d '\r')
-RESEARCH=$(printf '%s\n' "$FRONTMATTER" | grep '^research:' | sed 's/research: *//' | tr -d '\r')
-FRAMEWORK=$(printf '%s\n' "$FRONTMATTER" | grep '^framework:' | sed 's/framework: *//' | tr -d '\r')
-FOCUS=$(printf '%s\n' "$FRONTMATTER" | grep '^focus:' | sed 's/focus: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
-CONTEXT_SOURCE=$(printf '%s\n' "$FRONTMATTER" | grep '^context_source:' | sed 's/context_source: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
-VERSUS=$(printf '%s\n' "$FRONTMATTER" | grep '^versus:' | sed 's/versus: *//' | tr -d '\r')
-INTERACTIVE=$(printf '%s\n' "$FRONTMATTER" | grep '^interactive:' | sed 's/interactive: *//' | tr -d '\r')
-STAKEHOLDERS=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholders:' | sed 's/stakeholders: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
-STAKEHOLDER_INDEX=$(printf '%s\n' "$FRONTMATTER" | grep '^stakeholder_index:' | sed 's/stakeholder_index: *//' | tr -d '\r')
-PERSONAS=$(printf '%s\n' "$FRONTMATTER" | grep '^personas:' | sed 's/personas: *//' | sed 's/^"\(.*\)"$/\1/' | tr -d '\r')
+# Helper: extract field from YAML frontmatter (pipefail-safe — won't crash if field is missing)
+_fm() { printf '%s\n' "$FRONTMATTER" | { grep "^${1}:" || true; } | sed "s/^${1}: *//" | tr -d '\r'; }
+# Helper: extract quoted field (strips surrounding double quotes, unescapes YAML escapes)
+_fmq() {
+  _fm "$1" | sed 's/^"\(.*\)"$/\1/' | awk '{
+    gsub(/\\\\/, "\x01")
+    gsub(/\\"/, "\"")
+    gsub(/\\n/, "\n")
+    gsub(/\\t/, "\t")
+    gsub(/\\r/, "\r")
+    gsub(/\x01/, "\\")
+    printf "%s", $0
+  }'
+}
+
+ACTIVE=$(_fm active)
+QUESTION=$(_fmq question)
+MODE=$(_fm mode)
+POSITION=$(_fmq position)
+ROUND=$(_fm round)
+MAX_ROUNDS=$(_fm max_rounds)
+PHASE=$(_fm phase)
+RESEARCH=$(_fm research)
+FRAMEWORK=$(_fm framework)
+FOCUS=$(_fmq focus)
+CONTEXT_SOURCE=$(_fmq context_source)
+VERSUS=$(_fm versus)
+INTERACTIVE=$(_fm interactive)
+STAKEHOLDERS=$(_fmq stakeholders)
+STAKEHOLDER_INDEX=$(_fm stakeholder_index)
+PERSONAS=$(_fmq personas)
 
 # Parse persona names into array
 PERSONA_NAMES=()

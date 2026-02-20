@@ -221,6 +221,21 @@ if [[ "$PERSONA_COUNT" -gt 0 ]]; then
     echo "Usage: /anvil \"topic\" --persona \"persona A\" --persona \"persona B\"" >&2
     exit 1
   fi
+  # Validate persona names before processing
+  for pname in "${PERSONAS[@]}"; do
+    if [[ "$pname" == *"|"* ]]; then
+      echo "Error: persona name cannot contain '|' (reserved separator): $pname" >&2
+      exit 1
+    fi
+    if [[ "$pname" == *"<!--"* ]] || [[ "$pname" == *"-->"* ]]; then
+      echo "Error: persona name cannot contain HTML comment markers: $pname" >&2
+      exit 1
+    fi
+    if [[ "$pname" == *$'\n'* ]] || [[ "$pname" == *$'\r'* ]]; then
+      echo "Error: persona name cannot contain newline or carriage return characters" >&2
+      exit 1
+    fi
+  done
   # Resolve preset vs custom persona descriptions
   PERSONA_DESCRIPTIONS=()
   PERSONA_NAMES=()
@@ -433,9 +448,15 @@ fi
 # Create .claude directory if needed
 mkdir -p .claude
 
-# Escape strings for YAML double-quoted values (backslash, then double-quote)
+# Escape strings for YAML double-quoted values
 yaml_escape() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+  local s="$1"
+  s="${s//\\/\\\\}"    # \ → \\  (must be first)
+  s="${s//\"/\\\"}"    # " → \"
+  s="${s//$'\n'/\\n}"  # newline → \n
+  s="${s//$'\t'/\\t}"  # tab → \t
+  s="${s//$'\r'/\\r}"  # CR → \r
+  printf '%s' "$s"
 }
 
 # Format position for YAML (null if empty)
@@ -475,14 +496,14 @@ max_rounds: $ROUNDS
 phase: $INITIAL_PHASE
 research: $RESEARCH
 framework: $FRAMEWORK
-focus: "$FOCUS"
-context_source: "$CONTEXT_SOURCE"
-follow_up: "$FOLLOW_UP"
+focus: "$(yaml_escape "$FOCUS")"
+context_source: "$(yaml_escape "$CONTEXT_SOURCE")"
+follow_up: "$(yaml_escape "$FOLLOW_UP")"
 versus: $( [[ -n "$VERSUS_A" ]] && echo "true" || echo "false" )
 interactive: $INTERACTIVE
-stakeholders: "$STAKEHOLDERS"
+stakeholders: "$(yaml_escape "$STAKEHOLDERS")"
 stakeholder_index: 1
-personas: "$PERSONAS_YAML"
+personas: "$(yaml_escape "$PERSONAS_YAML")"
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
