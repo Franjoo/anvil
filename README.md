@@ -67,6 +67,7 @@ claude --plugin-dir ./anvil
 | `--interactive` | off | Pause between rounds for user steering |
 | `--stakeholders` | — | Custom stakeholder list (comma-separated) |
 | `--persona` | — | Named persona (repeatable, min 2). Preset or free-text |
+| `--output` | `.claude/anvil-result.local.md` | Custom output path. Use `.html` extension for self-contained HTML report |
 
 ### Check status / cancel
 
@@ -184,6 +185,30 @@ With 3+ personas, each gets their own round (rotation mode):
   --persona end-user
 ```
 
+### Report Output & HTML Export
+
+Results include an **Executive Summary** (the synthesis) and a full **Debate Record** (all rounds). By default, saved to `.claude/anvil-result.local.md`.
+
+Use `--output` to customize the path:
+
+```
+/anvil:anvil "Should we adopt GraphQL?" --output ~/reports/graphql-analysis.md
+```
+
+For a self-contained, print-friendly HTML report, use a `.html` extension:
+
+```
+/anvil:anvil "Migrate to Kubernetes?" --output report.html
+```
+
+The HTML export requires `bun` and produces a styled single-file document with no external dependencies — ready for sharing or archiving.
+
+You can also convert any existing result to HTML standalone:
+
+```
+bun run report < .claude/anvil-result.local.md > report.html
+```
+
 ### Web Research
 
 Enable `--research` to ground arguments in real-time web searches. Each phase performs targeted research: Advocate searches for supporting evidence, Critic for counter-evidence, Synthesizer fact-checks both.
@@ -231,7 +256,9 @@ Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-c
   +- Claude produces balanced analysis (Synthesizer phase)
   |   +- Stop hook fires -> writes result -> allows exit
   |
-  +- Result saved to .claude/anvil-result.local.md
+  +- Result saved (Executive Summary + Debate Record)
+  |   Default: .claude/anvil-result.local.md
+  |   Custom: --output path (HTML if .html extension)
 ```
 
 ### State File
@@ -252,6 +279,7 @@ anvil/
 |   +-- stop-hook.sh              # Core orchestrator (state machine)
 +-- scripts/
 |   +-- setup-anvil.sh            # Argument parsing + state initialization
+|   +-- generate-report.mjs       # Markdown → self-contained HTML converter
 +-- prompts/
 |   +-- advocate.md               # Advocate role instructions
 |   +-- critic.md                 # Critic role instructions
