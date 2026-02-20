@@ -7,8 +7,8 @@
 <p align="center">Adversarial thinking plugin for <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>. Stress-test ideas through structured debates.</p>
 
 <p align="center">
-  <a href="https://github.com/Franjoo/anvil/releases"><img src="https://img.shields.io/github/v/release/Franjoo/anvil?style=flat-square" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Franjoo/anvil?style=flat-square" alt="License"></a>
+  <a href="https://github.com/mulkatz/anvil/releases"><img src="https://img.shields.io/github/v/release/mulkatz/anvil?style=flat-square" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/mulkatz/anvil?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/Claude_Code-plugin-blueviolet?style=flat-square" alt="Claude Code Plugin">
   <img src="https://img.shields.io/badge/no_build-shell_%2B_markdown-green?style=flat-square" alt="No Build Step">
 </p>
@@ -22,18 +22,18 @@ The name: an anvil is what you hammer arguments against to shape them.
 In Claude Code, run:
 
 ```
-/plugin marketplace add Franjoo/anvil
-/plugin install anvil@franjoo
+/plugin marketplace add mulkatz/anvil
+/plugin install anvil@mulkatz
 ```
 
-That's it. No cloning needed. Auto-updates are supported via `/plugin marketplace update franjoo`.
+That's it. No cloning needed. Auto-updates are supported via `/plugin marketplace update mulkatz`.
 
 ### Local development
 
 For local development or testing, use `--plugin-dir`:
 
 ```bash
-git clone https://github.com/Franjoo/anvil.git
+git clone https://github.com/mulkatz/anvil.git
 claude --plugin-dir ./anvil
 ```
 

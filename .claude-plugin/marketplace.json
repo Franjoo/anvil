@@ -1,5 +1,5 @@
 {
-  "name": "franjoo",
+  "name": "mulkatz",
   "owner": {
     "name": "Franz",
     "email": "franz@franz.cx"
@@ -17,8 +17,8 @@
         "name": "Franz",
         "email": "franz@franz.cx"
       },
-      "homepage": "https://github.com/Franjoo/anvil",
-      "repository": "https://github.com/Franjoo/anvil",
+      "homepage": "https://github.com/mulkatz/anvil",
+      "repository": "https://github.com/mulkatz/anvil",
       "license": "MIT",
       "keywords": ["adversarial", "debate", "thinking", "analysis", "decision-making"]
     }
