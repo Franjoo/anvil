@@ -9,9 +9,9 @@
 
 create_state_file() {
   local active="true"
-  local question="\"Should we use microservices?\""
+  local question="Should we use microservices?"
   local mode="analyst"
-  local position="null"
+  local position=""
   local round="1"
   local max_rounds="3"
   local phase="advocate"
@@ -65,7 +65,15 @@ create_state_file() {
     s="${s//$'\r'/\\r}"  # CR → \r
     printf '%s' "$s"
   }
+  # Escape all user-input string fields (mirrors setup-anvil.sh)
+  local esc_question esc_position_yaml
   local esc_focus esc_stakeholders esc_personas esc_context_source esc_follow_up esc_output
+  esc_question="\"$(_test_yaml_escape "$question")\""
+  if [[ -n "$position" && "$position" != "null" ]]; then
+    esc_position_yaml="\"$(_test_yaml_escape "$position")\""
+  else
+    esc_position_yaml="null"
+  fi
   esc_focus=$(_test_yaml_escape "$focus")
   esc_stakeholders=$(_test_yaml_escape "$stakeholders")
   esc_personas=$(_test_yaml_escape "$personas")
@@ -79,9 +87,9 @@ create_state_file() {
   cat > "$state_file" <<EOF
 ---
 active: $active
-question: $question
+question: $esc_question
 mode: $mode
-position: $position
+position: $esc_position_yaml
 round: $round
 max_rounds: $max_rounds
 phase: $phase

@@ -58,7 +58,7 @@ load "../helpers/assertions"
 
 @test "devils-advocate mode prompt included" {
   create_state_file phase="advocate" round="1" max_rounds="3" mode="devils-advocate" \
-    position="\"I think X\""
+    position="I think X"
   setup_hook_input "Advocate output"
   run_stop_hook
   assert_reason_contains "devil"
@@ -68,7 +68,7 @@ load "../helpers/assertions"
 
 @test "question included in prompt" {
   create_state_file phase="advocate" round="1" max_rounds="3" \
-    question="\"Should we use microservices?\""
+    question="Should we use microservices?"
   setup_hook_input "Advocate output"
   run_stop_hook
   assert_reason_contains "Should we use microservices?"
@@ -76,7 +76,7 @@ load "../helpers/assertions"
 
 @test "position included in prompt when set" {
   create_state_file phase="advocate" round="1" max_rounds="3" \
-    position="\"I believe microservices are bad\""
+    position="I believe microservices are bad"
   setup_hook_input "Advocate output"
   run_stop_hook
   assert_reason_contains "I believe microservices are bad"
@@ -277,7 +277,7 @@ load "../helpers/assertions"
 
 @test "research: devils-advocate mode advocate mentions UNDERMINES" {
   create_state_file phase="critic" round="1" max_rounds="3" research="true" mode="devils-advocate" \
-    position="\"I think X\""
+    position="I think X"
   add_round_to_state 1 "adv"
   setup_hook_input "Critic output"
   run_stop_hook

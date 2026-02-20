@@ -342,7 +342,7 @@ EOF
 
 @test "hook: question with double quotes is correctly unescaped in prompt" {
   create_state_file phase=advocate round=1 max_rounds=2 \
-    'question="Should we use \"microservices\"?"'
+    'question=Should we use "microservices"?'
   setup_hook_input "My argument."
   run_stop_hook
   assert_block_decision
@@ -353,7 +353,7 @@ EOF
 @test "hook: position with double quotes is correctly unescaped in prompt" {
   create_state_file phase=advocate round=1 max_rounds=2 \
     mode=devils-advocate \
-    'position="I believe \"strongly\" in this"'
+    'position=I believe "strongly" in this'
   setup_hook_input "My argument."
   run_stop_hook
   assert_block_decision

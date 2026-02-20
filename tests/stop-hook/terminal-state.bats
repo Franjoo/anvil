@@ -21,7 +21,7 @@ load "../helpers/assertions"
 
 @test "result file contains question in heading" {
   create_state_file phase="synthesizer" round="2" max_rounds="2" \
-    question="\"Should we use microservices?\""
+    question="Should we use microservices?"
   setup_hook_input "Synthesis content"
   run_stop_hook
   assert_result_contains "Anvil Analysis: Should we use microservices?"
