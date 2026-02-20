@@ -22,6 +22,7 @@ VERSUS_A=""
 VERSUS_B=""
 INTERACTIVE=false
 STAKEHOLDERS=""
+OUTPUT=""
 PERSONAS=()
 MODE_EXPLICIT=false
 QUESTION_PARTS=()
@@ -139,6 +140,14 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       PERSONAS+=("$2")
+      shift 2
+      ;;
+    --output)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --output requires a file path" >&2
+        exit 1
+      fi
+      OUTPUT="$2"
       shift 2
       ;;
     *)
@@ -504,6 +513,7 @@ interactive: $INTERACTIVE
 stakeholders: "$(yaml_escape "$STAKEHOLDERS")"
 stakeholder_index: 1
 personas: "$(yaml_escape "$PERSONAS_YAML")"
+output: "$(yaml_escape "$OUTPUT")"
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 EOF
@@ -588,6 +598,9 @@ if [[ "$HAS_CONTEXT" == "true" ]]; then
 fi
 if [[ -n "$FOLLOW_UP" ]]; then
   echo "  Follow-up: $FOLLOW_UP"
+fi
+if [[ -n "$OUTPUT" ]]; then
+  echo "  Output:    $OUTPUT"
 fi
 if [[ -n "$VERSUS_A" ]]; then
   echo "  Versus:    $VERSUS_A vs $VERSUS_B"

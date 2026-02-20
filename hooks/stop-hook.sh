@@ -70,6 +70,7 @@ INTERACTIVE=$(_fm interactive)
 STAKEHOLDERS=$(_fmq stakeholders)
 STAKEHOLDER_INDEX=$(_fm stakeholder_index)
 PERSONAS=$(_fmq personas)
+OUTPUT=$(_fmq output)
 
 # Parse persona names into array
 PERSONA_NAMES=()
@@ -246,8 +247,11 @@ case "$PHASE" in
     fi
     ;;
   synthesizer)
-    # Debate complete — write result file and allow exit
-    RESULT_FILE=".claude/anvil-result.local.md"
+    # Debate complete — build full report, write result, clean up
+
+    # Determine output path
+    RESULT_FILE="${OUTPUT:-.claude/anvil-result.local.md}"
+
     TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
     RESEARCH_LABEL="no"
@@ -255,31 +259,66 @@ case "$PHASE" in
       RESEARCH_LABEL="yes"
     fi
 
-    FRAMEWORK_LABEL=""
-    if [[ -n "$FRAMEWORK" ]]; then
-      FRAMEWORK_LABEL="$FRAMEWORK"
-    fi
+    # Extract debate record from state file body (everything from ## Round/Stakeholder/Persona up to ## Synthesis)
+    DEBATE_RECORD=$(awk '/^## (Round|Stakeholder|Persona) [0-9]/{d=1} /^## Synthesis$/{exit} d{print}' "$ANVIL_STATE_FILE")
 
-    RESULT_HEADER=$(printf '# Anvil Analysis\n\n**Question**: %s\n**Mode**: %s\n**Rounds**: %s\n**Research**: %s' \
-      "$QUESTION" "$MODE" "$ROUND" "$RESEARCH_LABEL")
-    if [[ -n "$FRAMEWORK_LABEL" ]]; then
-      RESULT_HEADER=$(printf '%s\n**Framework**: %s' "$RESULT_HEADER" "$FRAMEWORK_LABEL")
-    fi
-    if [[ -n "$FOCUS" ]]; then
-      RESULT_HEADER=$(printf '%s\n**Focus**: %s' "$RESULT_HEADER" "$FOCUS")
-    fi
-    if [[ -n "$CONTEXT_SOURCE" ]]; then
-      RESULT_HEADER=$(printf '%s\n**Context**: %s' "$RESULT_HEADER" "$CONTEXT_SOURCE")
-    fi
-    if [[ -n "$PERSONAS" ]]; then
-      RESULT_HEADER=$(printf '%s\n**Personas**: %s' "$RESULT_HEADER" "$(echo "$PERSONAS" | tr '|' ', ')")
-    fi
-    RESULT_HEADER=$(printf '%s\n**Date**: %s' "$RESULT_HEADER" "$TIMESTAMP")
+    # Build full report function
+    build_full_report() {
+      printf '# Anvil Analysis: %s\n\n' "$QUESTION"
 
-    printf '%s\n\n%s\n' "$RESULT_HEADER" "$LAST_OUTPUT" > "$RESULT_FILE"
+      # Metadata blockquote
+      local meta
+      meta=$(printf '> **Mode**: %s | **Rounds**: %s | **Research**: %s | **Date**: %s' \
+        "$MODE" "$ROUND" "$RESEARCH_LABEL" "$TIMESTAMP")
+      if [[ -n "$FRAMEWORK" ]]; then
+        meta=$(printf '%s\n> **Framework**: %s' "$meta" "$FRAMEWORK")
+      fi
+      if [[ -n "$FOCUS" ]]; then
+        meta=$(printf '%s\n> **Focus**: %s' "$meta" "$FOCUS")
+      fi
+      if [[ -n "$CONTEXT_SOURCE" ]]; then
+        meta=$(printf '%s\n> **Context**: %s' "$meta" "$CONTEXT_SOURCE")
+      fi
+      if [[ -n "$PERSONAS" ]]; then
+        meta=$(printf '%s\n> **Personas**: %s' "$meta" "$(echo "$PERSONAS" | tr '|' ', ')")
+      fi
+      printf '%s\n' "$meta"
+
+      printf '\n---\n\n'
+      printf '## Executive Summary\n\n'
+      printf '%s\n' "$LAST_OUTPUT"
+
+      if [[ -n "$DEBATE_RECORD" ]]; then
+        printf '\n---\n\n'
+        printf '## Debate Record\n\n'
+        printf '%s\n' "$DEBATE_RECORD"
+      fi
+    }
+
+    # Ensure parent directory exists
+    mkdir -p "$(dirname "$RESULT_FILE")"
+
+    # Determine format and write
+    TEMP_RESULT="${RESULT_FILE}.tmp.$$"
+    if [[ "$RESULT_FILE" == *.html ]]; then
+      # HTML export
+      REPORT_SCRIPT="${PLUGIN_ROOT}/scripts/generate-report.mjs"
+      if command -v bun >/dev/null 2>&1 && [[ -f "$REPORT_SCRIPT" ]]; then
+        build_full_report | bun "$REPORT_SCRIPT" > "$TEMP_RESULT"
+      else
+        # Fallback: write markdown with warning
+        {
+          printf '<!-- WARNING: HTML conversion unavailable (bun not found). Markdown output below. -->\n\n'
+          build_full_report
+        } > "$TEMP_RESULT"
+      fi
+    else
+      build_full_report > "$TEMP_RESULT"
+    fi
+    mv "$TEMP_RESULT" "$RESULT_FILE"
 
     rm -f "$ANVIL_STATE_FILE"
-    echo "Anvil debate complete. Result saved to .claude/anvil-result.local.md"
+    echo "Anvil debate complete. Result saved to $RESULT_FILE"
     exit 0
     ;;
 esac

@@ -10,6 +10,7 @@
     "test:integration": "./tests/lib/bats-core/bin/bats tests/integration/",
     "lint": "shellcheck -s bash scripts/setup-anvil.sh hooks/stop-hook.sh",
     "check": "bun run lint && bun run test",
+    "report": "bun scripts/generate-report.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

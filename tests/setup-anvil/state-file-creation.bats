@@ -142,3 +142,10 @@ run_setup() {
   run_setup "question" --follow-up "${TEST_DIR}/prior.md"
   assert_frontmatter "follow_up" "${TEST_DIR}/prior.md"
 }
+
+# --- Output path state ---
+
+@test "--output path stored in state frontmatter" {
+  run_setup "question" --output /tmp/my-report.html
+  assert_frontmatter "output" "/tmp/my-report.html"
+}

@@ -57,6 +57,16 @@ run_setup() {
   assert_output --partial "Research:  ENABLED"
 }
 
+@test "output shows output path when set" {
+  run_setup "question" --output /tmp/report.html
+  assert_output --partial "Output:    /tmp/report.html"
+}
+
+@test "output path not shown when not set" {
+  run_setup "question"
+  refute_output --partial "Output:"
+}
+
 # --- Phase indication ---
 
 @test "default phase shows ADVOCATE" {

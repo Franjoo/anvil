@@ -19,12 +19,12 @@ load "../helpers/assertions"
   assert_result_exists
 }
 
-@test "result file contains question" {
+@test "result file contains question in heading" {
   create_state_file phase="synthesizer" round="2" max_rounds="2" \
     question="\"Should we use microservices?\""
   setup_hook_input "Synthesis content"
   run_stop_hook
-  assert_result_contains "Should we use microservices?"
+  assert_result_contains "Anvil Analysis: Should we use microservices?"
 }
 
 @test "result file contains mode" {
@@ -98,4 +98,118 @@ load "../helpers/assertions"
   setup_hook_input "Final synthesis"
   run_stop_hook
   assert_success
+}
+
+# --- Full report structure ---
+
+@test "result contains Executive Summary heading" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2"
+  setup_hook_input "My synthesis conclusion"
+  run_stop_hook
+  assert_result_contains "## Executive Summary"
+}
+
+@test "result contains Debate Record heading" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2"
+  add_round_to_state 1 "advocate arg" "critic arg"
+  add_round_to_state 2 "advocate arg 2" "critic arg 2"
+  setup_hook_input "Synthesis output"
+  run_stop_hook
+  assert_result_contains "## Debate Record"
+}
+
+@test "result contains advocate/critic content from rounds" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2"
+  add_round_to_state 1 "Microservices are great for scaling" "Monoliths are simpler"
+  add_round_to_state 2 "But scaling matters" "Complexity kills"
+  setup_hook_input "Final balanced view"
+  run_stop_hook
+  assert_result_contains "Microservices are great for scaling"
+  assert_result_contains "Monoliths are simpler"
+  assert_result_contains "But scaling matters"
+  assert_result_contains "Complexity kills"
+}
+
+@test "synthesis appears after Executive Summary heading" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2"
+  add_round_to_state 1 "adv" "crit"
+  setup_hook_input "The balanced conclusion"
+  run_stop_hook
+  local rf
+  rf=$(result_file)
+  # Executive Summary should come before the synthesis text
+  local summary_line debate_line
+  summary_line=$(grep -n "## Executive Summary" "$rf" | head -1 | cut -d: -f1)
+  debate_line=$(grep -n "The balanced conclusion" "$rf" | head -1 | cut -d: -f1)
+  [ "$summary_line" -lt "$debate_line" ]
+}
+
+@test "custom output path used when set in frontmatter" {
+  local custom_path="${TEST_DIR}/custom-output/report.md"
+  create_state_file phase="synthesizer" round="2" max_rounds="2" \
+    output="$custom_path"
+  setup_hook_input "Custom path synthesis"
+  run_stop_hook
+  assert_success
+  [ -f "$custom_path" ]
+  grep -qF "Custom path synthesis" "$custom_path"
+}
+
+@test "default path used when output not set" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2"
+  setup_hook_input "Default path synthesis"
+  run_stop_hook
+  assert_success
+  assert_result_exists
+  assert_result_contains "Default path synthesis"
+}
+
+@test "stakeholder transcript preserved in debate record" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2" \
+    mode="stakeholders" stakeholders="Engineering,Product"
+  # Add stakeholder rounds
+  local sf
+  sf=$(state_file)
+  printf '\n## Stakeholder 1: Engineering\n\nEngineering perspective here\n' >> "$sf"
+  printf '\n## Stakeholder 2: Product\n\nProduct perspective here\n' >> "$sf"
+  setup_hook_input "Stakeholder synthesis"
+  run_stop_hook
+  assert_result_contains "Engineering perspective here"
+  assert_result_contains "Product perspective here"
+}
+
+@test "parent directory created for custom output path" {
+  local custom_path="${TEST_DIR}/deep/nested/dir/report.md"
+  create_state_file phase="synthesizer" round="2" max_rounds="2" \
+    output="$custom_path"
+  setup_hook_input "Nested output synthesis"
+  run_stop_hook
+  assert_success
+  [ -f "$custom_path" ]
+}
+
+@test "html output path produces HTML when bun available" {
+  if ! command -v bun >/dev/null 2>&1; then
+    skip "bun not available"
+  fi
+  local html_path="${TEST_DIR}/report.html"
+  create_state_file phase="synthesizer" round="1" max_rounds="1" \
+    output="$html_path"
+  add_round_to_state 1 "Advocate argument" "Critic argument"
+  setup_hook_input "HTML synthesis output"
+  run_stop_hook
+  assert_success
+  [ -f "$html_path" ]
+  grep -qF "<!DOCTYPE html>" "$html_path"
+  grep -qF "HTML synthesis output" "$html_path"
+  grep -qF "executive-summary" "$html_path"
+}
+
+@test "console message shows actual output path" {
+  local custom_path="${TEST_DIR}/my-report.md"
+  create_state_file phase="synthesizer" round="2" max_rounds="2" \
+    output="$custom_path"
+  setup_hook_input "Synthesis"
+  run_stop_hook
+  assert_output --partial "Result saved to $custom_path"
 }

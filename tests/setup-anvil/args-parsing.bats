@@ -152,6 +152,23 @@ run_setup() {
   assert_frontmatter "interactive" "true"
 }
 
+@test "default output is empty" {
+  run_setup "question"
+  assert_success
+  assert_frontmatter "output" ""
+}
+
+@test "--output stores path" {
+  run_setup "question" --output /tmp/report.html
+  assert_success
+  assert_frontmatter "output" "/tmp/report.html"
+}
+
+@test "--output without value fails" {
+  run_setup "question" --output
+  assert_failure
+}
+
 @test "--diff flag" {
   run_setup "question" --diff
   assert_success

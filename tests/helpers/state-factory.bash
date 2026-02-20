@@ -25,6 +25,7 @@ create_state_file() {
   local stakeholders=""
   local stakeholder_index="1"
   local personas=""
+  local output=""
   local started_at="2026-01-01T00:00:00Z"
   local body=""
 
@@ -48,6 +49,7 @@ create_state_file() {
       stakeholders=*) stakeholders="${arg#stakeholders=}" ;;
       stakeholder_index=*) stakeholder_index="${arg#stakeholder_index=}" ;;
       personas=*) personas="${arg#personas=}" ;;
+      output=*) output="${arg#output=}" ;;
       started_at=*) started_at="${arg#started_at=}" ;;
       body=*) body="${arg#body=}" ;;
     esac
@@ -63,12 +65,13 @@ create_state_file() {
     s="${s//$'\r'/\\r}"  # CR → \r
     printf '%s' "$s"
   }
-  local esc_focus esc_stakeholders esc_personas esc_context_source esc_follow_up
+  local esc_focus esc_stakeholders esc_personas esc_context_source esc_follow_up esc_output
   esc_focus=$(_test_yaml_escape "$focus")
   esc_stakeholders=$(_test_yaml_escape "$stakeholders")
   esc_personas=$(_test_yaml_escape "$personas")
   esc_context_source=$(_test_yaml_escape "$context_source")
   esc_follow_up=$(_test_yaml_escape "$follow_up")
+  esc_output=$(_test_yaml_escape "$output")
 
   local state_file="${TEST_DIR}/.claude/anvil-state.local.md"
   mkdir -p "$(dirname "$state_file")"
@@ -92,6 +95,7 @@ interactive: $interactive
 stakeholders: "$esc_stakeholders"
 stakeholder_index: $stakeholder_index
 personas: "$esc_personas"
+output: "$esc_output"
 started_at: "$started_at"
 ---
 EOF
