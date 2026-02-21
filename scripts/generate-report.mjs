@@ -3,374 +3,375 @@
 // with sidebar navigation, scroll spy, responsive design, and refined typography.
 // Zero npm dependencies. Reads from stdin or file arg, writes HTML to stdout.
 
-import { readFileSync } from "fs";
+import { readFileSync } from 'fs'
 
 // --- Input ---
-let markdown;
+let markdown
 if (process.argv[2]) {
-  markdown = readFileSync(process.argv[2], "utf-8");
+  markdown = readFileSync(process.argv[2], 'utf-8')
 } else {
-  markdown = readFileSync("/dev/stdin", "utf-8");
+  markdown = readFileSync('/dev/stdin', 'utf-8')
 }
 
 // --- Utilities ---
 
 function escapeHtml(text) {
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function sanitizeHref(url) {
-  const trimmed = url.trim();
-  if (/^(https?:|mailto:|\/|#|\.)/i.test(trimmed)) return trimmed;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return "#blocked";
-  return trimmed;
+  const trimmed = url.trim()
+  if (/^(https?:|mailto:|\/|#|\.)/i.test(trimmed)) return trimmed
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return '#blocked'
+  return trimmed
 }
 
 function convertInline(text) {
-  text = escapeHtml(text);
-  text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
-  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  text = text.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  text = text.replace(/(?<!\w)_(.+?)_(?!\w)/g, "<em>$1</em>");
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) =>
-    `<a href="${sanitizeHref(href)}">${label}</a>`
-  );
-  return text;
+  text = escapeHtml(text)
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>')
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  text = text.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>')
+  text = text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    (_, label, href) => `<a href="${sanitizeHref(href)}">${label}</a>`,
+  )
+  return text
 }
 
 function slugify(text) {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
 }
 
 function parseMetadata(text) {
-  const meta = {};
+  const meta = {}
   // Extract all **Key**: Value pairs regardless of separators
-  const re = /\*\*(.+?)\*\*\s*:\s*([^|*]+)/g;
-  let m;
+  const re = /\*\*(.+?)\*\*\s*:\s*([^|*]+)/g
+  let m
   while ((m = re.exec(text)) !== null) {
-    meta[m[1].trim().toLowerCase()] = m[2].trim();
+    meta[m[1].trim().toLowerCase()] = m[2].trim()
   }
-  return meta;
+  return meta
 }
 
 function formatDate(str) {
   try {
-    const d = new Date(str);
-    if (isNaN(d.getTime())) return str;
+    const d = new Date(str)
+    if (isNaN(d.getTime())) return str
     const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
   } catch {
-    return str;
+    return str
   }
 }
 
 // --- Markdown Converter ---
 
 function convertMarkdown(md) {
-  const lines = md.split("\n");
-  let i = 0;
-  let title = "";
-  let metadata = null;
-  let foundMetadata = false;
-  let skippedFirstHr = false;
-  const tocItems = [];
-  const sectionHtmlChunks = [];
-  const preSectionHtml = []; // content before first h2
-  let cur = null; // current section html array
-  let inRole = false;
-  let inExecSummary = false;
+  const lines = md.split('\n')
+  let i = 0
+  let title = ''
+  let metadata = null
+  let foundMetadata = false
+  let skippedFirstHr = false
+  const tocItems = []
+  const sectionHtmlChunks = []
+  const preSectionHtml = [] // content before first h2
+  let cur = null // current section html array
+  let inRole = false
+  let inExecSummary = false
 
   function closeCurrent() {
     if (inRole && cur) {
-      cur.push("</div></div>");
-      inRole = false;
+      cur.push('</div></div>')
+      inRole = false
     }
     if (inExecSummary && cur) {
-      cur.push("</div>");
-      inExecSummary = false;
+      cur.push('</div>')
+      inExecSummary = false
     }
   }
 
   function closeSection() {
-    closeCurrent();
+    closeCurrent()
     if (cur) {
-      cur.push("</section>");
-      sectionHtmlChunks.push(cur.join("\n"));
-      cur = null;
+      cur.push('</section>')
+      sectionHtmlChunks.push(cur.join('\n'))
+      cur = null
     }
   }
 
   function emit(html) {
     if (cur) {
-      cur.push(html);
+      cur.push(html)
     } else {
-      preSectionHtml.push(html);
+      preSectionHtml.push(html)
     }
   }
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i]
 
     // --- Code blocks ---
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim().replace(/[^a-zA-Z0-9_-]/g, "");
-      const codeLines = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(escapeHtml(lines[i]));
-        i++;
+    if (line.startsWith('```')) {
+      const lang = line
+        .slice(3)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+      const codeLines = []
+      i++
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(escapeHtml(lines[i]))
+        i++
       }
-      if (i < lines.length) i++;
-      const langAttr = lang ? ` class="language-${lang}"` : "";
-      emit(`<pre><code${langAttr}>${codeLines.join("\n")}</code></pre>`);
-      continue;
+      if (i < lines.length) i++
+      const langAttr = lang ? ` class="language-${lang}"` : ''
+      emit(`<pre><code${langAttr}>${codeLines.join('\n')}</code></pre>`)
+      continue
     }
 
     // --- Headings ---
-    const hm = line.match(/^(#{1,4})\s+(.+)$/);
+    const hm = line.match(/^(#{1,4})\s+(.+)$/)
     if (hm) {
-      const level = hm[1].length;
-      const text = hm[2];
+      const level = hm[1].length
+      const text = hm[2]
 
       if (level === 1) {
-        title = text;
-        i++;
-        continue;
+        title = text
+        i++
+        continue
       }
 
       if (level === 2) {
-        closeSection();
-        const id = slugify(text);
-        const isExec = text === "Executive Summary";
-        const cls = isExec ? " executive-summary-section" : "";
-        cur = [];
-        cur.push(`<section id="${id}" class="section${cls}">`);
-        cur.push(`<h2>${convertInline(text)}</h2>`);
+        closeSection()
+        const id = slugify(text)
+        const isExec = text === 'Executive Summary'
+        const cls = isExec ? ' executive-summary-section' : ''
+        cur = []
+        cur.push(`<section id="${id}" class="section${cls}">`)
+        cur.push(`<h2>${convertInline(text)}</h2>`)
         if (isExec) {
-          cur.push('<div class="executive-summary">');
-          inExecSummary = true;
+          cur.push('<div class="executive-summary">')
+          inExecSummary = true
         }
-        tocItems.push({ id, text, level: 2 });
-        i++;
-        continue;
+        tocItems.push({ id, text, level: 2 })
+        i++
+        continue
       }
 
       if (level === 3) {
         if (inRole) {
-          emit("</div></div>");
-          inRole = false;
+          emit('</div></div>')
+          inRole = false
         }
-        const isAdv = /advocate/i.test(text);
-        const isCrit = /critic/i.test(text);
-        const role = isAdv ? "advocate" : isCrit ? "critic" : "";
-        const parentId =
-          tocItems.filter((t) => t.level === 2).slice(-1)[0]?.id || "";
-        const id = parentId
-          ? `${parentId}-${slugify(text)}`
-          : slugify(text);
+        const isAdv = /advocate/i.test(text)
+        const isCrit = /critic/i.test(text)
+        const role = isAdv ? 'advocate' : isCrit ? 'critic' : ''
+        const parentId = tocItems.filter((t) => t.level === 2).slice(-1)[0]?.id || ''
+        const id = parentId ? `${parentId}-${slugify(text)}` : slugify(text)
 
         if (role) {
-          inRole = true;
-          emit(`<div class="role-section role-${role}" id="${id}">`);
-          emit(
-            `<h3><span class="role-badge ${role}">${escapeHtml(text)}</span></h3>`
-          );
-          emit('<div class="role-content">');
+          inRole = true
+          emit(`<div class="role-section role-${role}" id="${id}">`)
+          emit(`<h3><span class="role-badge ${role}">${escapeHtml(text)}</span></h3>`)
+          emit('<div class="role-content">')
         } else {
-          emit(`<h3 id="${id}">${convertInline(text)}</h3>`);
+          emit(`<h3 id="${id}">${convertInline(text)}</h3>`)
         }
-        tocItems.push({ id, text, level: 3, role });
-        i++;
-        continue;
+        tocItems.push({ id, text, level: 3, role })
+        i++
+        continue
       }
 
       // h4
-      emit(`<h4>${convertInline(text)}</h4>`);
-      i++;
-      continue;
+      emit(`<h4>${convertInline(text)}</h4>`)
+      i++
+      continue
     }
 
     // --- Blockquote (first = metadata) ---
-    if (line.startsWith(">")) {
-      const quoteLines = [];
-      while (i < lines.length && lines[i].startsWith(">")) {
-        quoteLines.push(lines[i].replace(/^>\s?/, ""));
-        i++;
+    if (line.startsWith('>')) {
+      const quoteLines = []
+      while (i < lines.length && lines[i].startsWith('>')) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ''))
+        i++
       }
       if (!foundMetadata && !cur) {
-        const candidate = parseMetadata(quoteLines.join(" "));
+        const candidate = parseMetadata(quoteLines.join(' '))
         if (Object.keys(candidate).length > 0) {
-          metadata = candidate;
-          foundMetadata = true;
-          continue;
+          metadata = candidate
+          foundMetadata = true
+          continue
         }
       }
-      emit(
-        `<blockquote>${quoteLines.map(convertInline).join("<br>")}</blockquote>`
-      );
-      continue;
+      emit(`<blockquote>${quoteLines.map(convertInline).join('<br>')}</blockquote>`)
+      continue
     }
 
     // --- Horizontal rule ---
     if (/^---+$/.test(line.trim())) {
       if (foundMetadata && !skippedFirstHr && !cur) {
-        skippedFirstHr = true;
-        i++;
-        continue;
+        skippedFirstHr = true
+        i++
+        continue
       }
       if (inExecSummary) {
-        emit("</div>");
-        inExecSummary = false;
-        i++;
-        continue;
+        emit('</div>')
+        inExecSummary = false
+        i++
+        continue
       }
-      emit("<hr>");
-      i++;
-      continue;
+      emit('<hr>')
+      i++
+      continue
     }
 
     // --- Tables ---
-    if (line.includes("|") && line.trim().startsWith("|")) {
-      const tableLines = [];
-      while (
-        i < lines.length &&
-        lines[i].includes("|") &&
-        lines[i].trim().startsWith("|")
-      ) {
-        tableLines.push(lines[i]);
-        i++;
+    if (line.includes('|') && line.trim().startsWith('|')) {
+      const tableLines = []
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i])
+        i++
       }
       if (tableLines.length >= 2) {
-        const hCells = tableLines[0]
-          .split("|")
-          .filter((c) => c.trim() !== "");
-        let t = '<div class="table-wrap"><table><thead><tr>';
-        for (const c of hCells)
-          t += `<th>${convertInline(c.trim())}</th>`;
-        t += "</tr></thead><tbody>";
+        const hCells = tableLines[0].split('|').filter((c) => c.trim() !== '')
+        let t = '<div class="table-wrap"><table><thead><tr>'
+        for (const c of hCells) t += `<th>${convertInline(c.trim())}</th>`
+        t += '</tr></thead><tbody>'
         for (let r = 2; r < tableLines.length; r++) {
-          const cells = tableLines[r]
-            .split("|")
-            .filter((c) => c.trim() !== "");
-          t += "<tr>";
-          for (const c of cells)
-            t += `<td>${convertInline(c.trim())}</td>`;
-          t += "</tr>";
+          const cells = tableLines[r].split('|').filter((c) => c.trim() !== '')
+          t += '<tr>'
+          for (const c of cells) t += `<td>${convertInline(c.trim())}</td>`
+          t += '</tr>'
         }
-        t += "</tbody></table></div>";
-        emit(t);
+        t += '</tbody></table></div>'
+        emit(t)
       }
-      continue;
+      continue
     }
 
     // --- Unordered lists ---
     if (/^[-*]\s/.test(line.trim())) {
-      let list = "<ul>";
-      while (i < lines.length && (/^[-*]\s/.test(lines[i].trim()) || (lines[i].trim() === "" && i + 1 < lines.length && /^[-*]\s/.test(lines[i + 1]?.trim())))) {
-        if (lines[i].trim() === "") { i++; continue; }
-        list += `<li>${convertInline(lines[i].trim().replace(/^[-*]\s+/, ""))}</li>`;
-        i++;
+      let list = '<ul>'
+      while (
+        i < lines.length &&
+        (/^[-*]\s/.test(lines[i].trim()) ||
+          (lines[i].trim() === '' && i + 1 < lines.length && /^[-*]\s/.test(lines[i + 1]?.trim())))
+      ) {
+        if (lines[i].trim() === '') {
+          i++
+          continue
+        }
+        list += `<li>${convertInline(lines[i].trim().replace(/^[-*]\s+/, ''))}</li>`
+        i++
       }
-      list += "</ul>";
-      emit(list);
-      continue;
+      list += '</ul>'
+      emit(list)
+      continue
     }
 
     // --- Ordered lists ---
     if (/^\d+\.\s/.test(line.trim())) {
-      let list = "<ol>";
-      while (i < lines.length && (/^\d+\.\s/.test(lines[i].trim()) || (lines[i].trim() === "" && i + 1 < lines.length && /^\d+\.\s/.test(lines[i + 1]?.trim())))) {
-        if (lines[i].trim() === "") { i++; continue; }
-        list += `<li>${convertInline(lines[i].trim().replace(/^\d+\.\s+/, ""))}</li>`;
-        i++;
+      let list = '<ol>'
+      while (
+        i < lines.length &&
+        (/^\d+\.\s/.test(lines[i].trim()) ||
+          (lines[i].trim() === '' && i + 1 < lines.length && /^\d+\.\s/.test(lines[i + 1]?.trim())))
+      ) {
+        if (lines[i].trim() === '') {
+          i++
+          continue
+        }
+        list += `<li>${convertInline(lines[i].trim().replace(/^\d+\.\s+/, ''))}</li>`
+        i++
       }
-      list += "</ol>";
-      emit(list);
-      continue;
+      list += '</ol>'
+      emit(list)
+      continue
     }
 
     // --- Blank line ---
-    if (line.trim() === "") {
-      i++;
-      continue;
+    if (line.trim() === '') {
+      i++
+      continue
     }
 
     // --- Paragraph ---
-    const paraLines = [];
+    const paraLines = []
     while (
       i < lines.length &&
-      lines[i].trim() !== "" &&
-      !lines[i].startsWith("#") &&
-      !lines[i].startsWith("```") &&
-      !lines[i].startsWith(">") &&
+      lines[i].trim() !== '' &&
+      !lines[i].startsWith('#') &&
+      !lines[i].startsWith('```') &&
+      !lines[i].startsWith('>') &&
       !/^[-*]\s/.test(lines[i].trim()) &&
       !/^\d+\.\s/.test(lines[i].trim()) &&
       !/^---+$/.test(lines[i].trim()) &&
-      !(lines[i].includes("|") && lines[i].trim().startsWith("|"))
+      !(lines[i].includes('|') && lines[i].trim().startsWith('|'))
     ) {
-      paraLines.push(lines[i]);
-      i++;
+      paraLines.push(lines[i])
+      i++
     }
     if (paraLines.length > 0) {
-      emit(`<p>${convertInline(paraLines.join("\n"))}</p>`);
+      emit(`<p>${convertInline(paraLines.join('\n'))}</p>`)
     }
   }
 
-  closeSection();
-  return { sections: sectionHtmlChunks, preSectionHtml, tocItems, title, metadata };
+  closeSection()
+  return { sections: sectionHtmlChunks, preSectionHtml, tocItems, title, metadata }
 }
 
 // --- HTML Builders ---
 
 function buildTocHtml(items) {
-  if (items.length === 0) return "";
-  let html = '<ul class="toc" id="toc">';
+  if (items.length === 0) return ''
+  let html = '<ul class="toc" id="toc">'
   for (const item of items) {
-    const sub = item.level === 3 ? " toc-sub" : "";
-    const role = item.role ? ` toc-${item.role}` : "";
-    html += `<li><a href="#${item.id}" class="toc-link${sub}${role}" data-target="${item.id}">${escapeHtml(item.text)}</a></li>`;
+    const sub = item.level === 3 ? ' toc-sub' : ''
+    const role = item.role ? ` toc-${item.role}` : ''
+    html += `<li><a href="#${item.id}" class="toc-link${sub}${role}" data-target="${item.id}">${escapeHtml(item.text)}</a></li>`
   }
-  html += "</ul>";
-  return html;
+  html += '</ul>'
+  return html
 }
 
 function buildMetaBarHtml(meta) {
-  if (!meta || Object.keys(meta).length === 0) return "";
-  const displayOrder = ["mode", "rounds", "research", "framework", "focus", "date"];
+  if (!meta || Object.keys(meta).length === 0) return ''
+  const displayOrder = ['mode', 'rounds', 'research', 'framework', 'focus', 'date']
   const keys = [
     ...displayOrder.filter((k) => meta[k]),
     ...Object.keys(meta).filter((k) => !displayOrder.includes(k) && meta[k]),
-  ];
-  let html = '<div class="meta-bar">';
+  ]
+  let html = '<div class="meta-bar">'
   for (const key of keys) {
-    const val = meta[key];
-    if (!val) continue;
-    const label = key.charAt(0).toUpperCase() + key.slice(1);
-    const display = key === "date" ? formatDate(val) : val;
-    html += `<div class="meta-item"><span class="meta-label">${escapeHtml(label)}</span><span class="meta-value">${escapeHtml(display)}</span></div>`;
+    const val = meta[key]
+    if (!val) continue
+    const label = key.charAt(0).toUpperCase() + key.slice(1)
+    const display = key === 'date' ? formatDate(val) : val
+    html += `<div class="meta-item"><span class="meta-label">${escapeHtml(label)}</span><span class="meta-value">${escapeHtml(display)}</span></div>`
   }
-  html += "</div>";
-  return html;
+  html += '</div>'
+  return html
 }
 
 // --- CSS ---
@@ -948,7 +949,7 @@ hr {
   .section > h2::before { color: #999; }
   .section > h2 { border-bottom-color: #ccc; }
 }
-`;
+`
 
 // --- Client JS ---
 
@@ -1048,20 +1049,20 @@ const clientJs = `
   updateSpy();
   updateProgress();
 })();
-`;
+`
 
 // --- Assembly ---
 
-const { sections, preSectionHtml, tocItems, title, metadata } = convertMarkdown(markdown);
-const pageTitle = title || "Anvil Analysis";
+const { sections, preSectionHtml, tocItems, title, metadata } = convertMarkdown(markdown)
+const pageTitle = title || 'Anvil Analysis'
 
 // Strip "Anvil Analysis: " prefix for the visual h1 (eyebrow already says it)
-let displayTitle = title;
-const prefix = "Anvil Analysis: ";
+let displayTitle = title
+const prefix = 'Anvil Analysis: '
 if (displayTitle.startsWith(prefix)) {
-  displayTitle = displayTitle.slice(prefix.length);
-} else if (displayTitle.startsWith("Anvil Analysis:")) {
-  displayTitle = displayTitle.slice("Anvil Analysis:".length).trim();
+  displayTitle = displayTitle.slice(prefix.length)
+} else if (displayTitle.startsWith('Anvil Analysis:')) {
+  displayTitle = displayTitle.slice('Anvil Analysis:'.length).trim()
 }
 
 const html = `<!DOCTYPE html>
@@ -1088,13 +1089,13 @@ ${buildTocHtml(tocItems)}
 <h1>${convertInline(displayTitle)}</h1>
 ${buildMetaBarHtml(metadata)}
 </header>
-${preSectionHtml.join("\n")}
-${sections.join("\n")}
+${preSectionHtml.join('\n')}
+${sections.join('\n')}
 </article>
 </main>
 <button class="back-to-top" id="back-to-top" aria-label="Back to top"><svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg></button>
 <script>${clientJs}</script>
 </body>
-</html>`;
+</html>`
 
-process.stdout.write(html);
+process.stdout.write(html)

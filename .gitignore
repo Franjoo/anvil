@@ -18,6 +18,9 @@ node_modules
 *.tgz
 bun.lock
 
+# Personal notes (not for distribution)
+notes/
+
 # Anvil runtime state (generated during debates)
 .claude/anvil-state.local.md
 .claude/anvil-result.local.md

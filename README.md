@@ -13,7 +13,9 @@
   <img src="https://img.shields.io/badge/no_build-shell_%2B_markdown-green?style=flat-square" alt="No Build Step">
 </p>
 
-Anvil is a **thinking tool** that forces rigorous examination of propositions by rotating through Advocate, Critic, and Synthesizer phases — each with distinct role prompts that demand genuine adversarial positions. With `--research` enabled, arguments are grounded in real-time web research.
+Anvil is a **thinking tool** that forces rigorous examination of propositions by rotating through
+Advocate, Critic, and Synthesizer phases — each with distinct role prompts that demand genuine
+adversarial positions. With `--research` enabled, arguments are grounded in real-time web research.
 
 The name: an anvil is what you hammer arguments against to shape them.
 
@@ -51,23 +53,23 @@ claude --plugin-dir ./anvil
 /anvil:anvil "question" [options]
 ```
 
-| Option | Default | Description |
-|---|---|---|
-| `--mode` | `analyst` | Debate style: `analyst`, `philosopher`, `devils-advocate`, `stakeholders` |
-| `--rounds` | `3` | Number of advocate/critic rounds (1-5) |
-| `--position` | — | Your stance (required for `devils-advocate` mode) |
-| `--research` | off | Enable web research for evidence-grounded arguments |
-| `--framework` | — | Output format for synthesis: `adr`, `pre-mortem`, `red-team`, `rfc`, `risks` |
-| `--focus` | — | Narrow the debate lens: `security`, `performance`, `developer-experience`, `operational-cost`, `maintainability`, or custom text |
-| `--context` | — | Inject code/file context (repeatable): file path or directory |
-| `--pr` | — | Inject a GitHub PR as context (PR number) |
-| `--diff` | — | Inject uncommitted changes as context |
-| `--follow-up` | — | Build on a previous debate result (file path) |
-| `--versus` | — | Pit two prior results against each other (two file paths) |
-| `--interactive` | off | Pause between rounds for user steering |
-| `--stakeholders` | — | Custom stakeholder list (comma-separated) |
-| `--persona` | — | Named persona (repeatable, min 2). Preset or free-text |
-| `--output` | `~/Desktop/anvil-{date}-{slug}.html` | Custom output path. Use `.html` extension for self-contained HTML report |
+| Option           | Default                              | Description                                                                                                                      |
+| ---------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `--mode`         | `analyst`                            | Debate style: `analyst`, `philosopher`, `devils-advocate`, `stakeholders`                                                        |
+| `--rounds`       | `3`                                  | Number of advocate/critic rounds (1-5)                                                                                           |
+| `--position`     | —                                    | Your stance (required for `devils-advocate` mode)                                                                                |
+| `--research`     | off                                  | Enable web research for evidence-grounded arguments                                                                              |
+| `--framework`    | —                                    | Output format for synthesis: `adr`, `pre-mortem`, `red-team`, `rfc`, `risks`                                                     |
+| `--focus`        | —                                    | Narrow the debate lens: `security`, `performance`, `developer-experience`, `operational-cost`, `maintainability`, or custom text |
+| `--context`      | —                                    | Inject code/file context (repeatable): file path or directory                                                                    |
+| `--pr`           | —                                    | Inject a GitHub PR as context (PR number)                                                                                        |
+| `--diff`         | —                                    | Inject uncommitted changes as context                                                                                            |
+| `--follow-up`    | —                                    | Build on a previous debate result (file path)                                                                                    |
+| `--versus`       | —                                    | Pit two prior results against each other (two file paths)                                                                        |
+| `--interactive`  | off                                  | Pause between rounds for user steering                                                                                           |
+| `--stakeholders` | —                                    | Custom stakeholder list (comma-separated)                                                                                        |
+| `--persona`      | —                                    | Named persona (repeatable, min 2). Preset or free-text                                                                           |
+| `--output`       | `~/Desktop/anvil-{date}-{slug}.html` | Custom output path. Use `.html` extension for self-contained HTML report                                                         |
 
 ### Check status / cancel
 
@@ -80,7 +82,8 @@ claude --plugin-dir ./anvil
 
 ### Analyst (default)
 
-Evidence-based technical analysis. Advocate argues FOR with data and benchmarks. Critic dismantles with counter-evidence.
+Evidence-based technical analysis. Advocate argues FOR with data and benchmarks. Critic dismantles
+with counter-evidence.
 
 ```
 /anvil:anvil "Should we migrate to Kubernetes?" --mode analyst
@@ -88,7 +91,8 @@ Evidence-based technical analysis. Advocate argues FOR with data and benchmarks.
 
 ### Philosopher
 
-Socratic exploration using first-principles reasoning. Thought experiments, ethical frameworks, definitional precision.
+Socratic exploration using first-principles reasoning. Thought experiments, ethical frameworks,
+definitional precision.
 
 ```
 /anvil:anvil "Is AI-generated code really 'your' code?" --mode philosopher
@@ -96,7 +100,8 @@ Socratic exploration using first-principles reasoning. Thought experiments, ethi
 
 ### Devil's Advocate
 
-**Roles are reversed.** Advocate attacks YOUR stated position. Critic defends it. Best for stress-testing beliefs you already hold.
+**Roles are reversed.** Advocate attacks YOUR stated position. Critic defends it. Best for
+stress-testing beliefs you already hold.
 
 ```
 /anvil:anvil "monolith vs microservices" --mode devils-advocate --position "I believe we should stay with our monolith"
@@ -123,7 +128,8 @@ Structure the synthesis output into established decision formats.
 /anvil:anvil "Move to multi-tenant?" --framework risks
 ```
 
-Available: `adr` (Architecture Decision Record), `pre-mortem`, `red-team` (threat model), `rfc`, `risks` (risk register).
+Available: `adr` (Architecture Decision Record), `pre-mortem`, `red-team` (threat model), `rfc`,
+`risks` (risk register).
 
 ### Focus Lens
 
@@ -135,7 +141,8 @@ Narrow the entire debate to a single evaluation dimension.
 /anvil:anvil "Switch to Svelte?" --focus "team onboarding speed"
 ```
 
-Presets: `security`, `performance`, `developer-experience`, `operational-cost`, `maintainability`. Or pass any custom text.
+Presets: `security`, `performance`, `developer-experience`, `operational-cost`, `maintainability`.
+Or pass any custom text.
 
 ### Code-Aware Debates
 
@@ -158,7 +165,8 @@ Build on previous debates or pit two results against each other.
 
 ### Interactive Mode
 
-Steer the debate between rounds. Refocus the argument, ask for deeper exploration, or skip to synthesis.
+Steer the debate between rounds. Refocus the argument, ask for deeper exploration, or skip to
+synthesis.
 
 ```
 /anvil:anvil "Should we rewrite?" --interactive
@@ -174,7 +182,8 @@ Replace generic Advocate/Critic with named personas that have specific worldview
   --persona "product manager obsessed with user retention"
 ```
 
-Presets: `security-engineer`, `startup-cfo`, `junior-developer`, `end-user`. Or pass free-text descriptions.
+Presets: `security-engineer`, `startup-cfo`, `junior-developer`, `end-user`. Or pass free-text
+descriptions.
 
 With 3+ personas, each gets their own round (rotation mode):
 
@@ -187,13 +196,15 @@ With 3+ personas, each gets their own round (rotation mode):
 
 ### Report Output & HTML Export
 
-Results include an **Executive Summary** (the synthesis) and a full **Debate Record** (all rounds). By default, reports are saved as auto-named HTML files on your Desktop:
+Results include an **Executive Summary** (the synthesis) and a full **Debate Record** (all rounds).
+By default, reports are saved as auto-named HTML files on your Desktop:
 
 ```
 ~/Desktop/anvil-2026-02-20-should-we-use-microservices.html
 ```
 
-The filename is generated from the date and question (kebab-cased, first ~50 chars). Use `--output` to override:
+The filename is generated from the date and question (kebab-cased, first ~50 chars). Use `--output`
+to override:
 
 ```
 /anvil:anvil "Should we adopt GraphQL?" --output ~/reports/graphql-analysis.md
@@ -205,7 +216,8 @@ For a self-contained, print-friendly HTML report, use a `.html` extension:
 /anvil:anvil "Migrate to Kubernetes?" --output report.html
 ```
 
-The HTML export requires `bun` and produces a styled single-file document with no external dependencies — ready for sharing or archiving.
+The HTML export requires `bun` and produces a styled single-file document with no external
+dependencies — ready for sharing or archiving.
 
 You can also convert any existing result to HTML standalone:
 
@@ -215,13 +227,16 @@ bun run report < .claude/anvil-result.local.md > report.html
 
 ### Web Research
 
-Enable `--research` to ground arguments in real-time web searches. Each phase performs targeted research: Advocate searches for supporting evidence, Critic for counter-evidence, Synthesizer fact-checks both.
+Enable `--research` to ground arguments in real-time web searches. Each phase performs targeted
+research: Advocate searches for supporting evidence, Critic for counter-evidence, Synthesizer
+fact-checks both.
 
 ```
 /anvil:anvil "Should we adopt Rust for our backend?" --research
 ```
 
-> **Tip:** Research increases latency but grounds arguments in real evidence. For deep research, consider fewer rounds (`--rounds 2 --research`).
+> **Tip:** Research increases latency but grounds arguments in real evidence. For deep research,
+> consider fewer rounds (`--rounds 2 --research`).
 
 ### Combining Options
 
@@ -240,7 +255,8 @@ Options compose freely:
 
 ## How It Works
 
-Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) mechanism to orchestrate a multi-phase debate within a single session.
+Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) mechanism
+to orchestrate a multi-phase debate within a single session.
 
 ### Debate Flow
 
@@ -267,7 +283,8 @@ Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-c
 
 ### State File
 
-Debate state lives in `.claude/anvil-state.local.md` — YAML frontmatter for metadata, markdown body for the accumulating transcript. Human-readable, inspectable at any time.
+Debate state lives in `.claude/anvil-state.local.md` — YAML frontmatter for metadata, markdown body
+for the accumulating transcript. Human-readable, inspectable at any time.
 
 ## Architecture
 
@@ -313,7 +330,8 @@ anvil/
 +-- docs/adr/                     # Architecture Decision Records
 ```
 
-No TypeScript, no build step. The prompts ARE the product. Shell scripts orchestrate, markdown prompts instruct.
+No TypeScript, no build step. The prompts ARE the product. Shell scripts orchestrate, markdown
+prompts instruct.
 
 ## Development
 
@@ -325,7 +343,8 @@ bun run test:hook    # stop-hook.sh tests only
 bun run lint         # shellcheck only
 ```
 
-Tests use [bats-core](https://github.com/bats-core/bats-core) (Bash Automated Testing System). No additional dependencies — bats is vendored as git submodules.
+Tests use [bats-core](https://github.com/bats-core/bats-core) (Bash Automated Testing System). No
+additional dependencies — bats is vendored as git submodules.
 
 ## Design Decisions
 
