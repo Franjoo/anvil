@@ -24,7 +24,7 @@ The name: an anvil is what you hammer arguments against to shape them.
 In Claude Code, run:
 
 ```
-/plugin marketplace add mulkatz/anvil
+/plugin marketplace add mulkatz/claude-plugins
 /plugin install anvil@mulkatz
 ```
 

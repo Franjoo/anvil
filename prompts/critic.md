@@ -30,7 +30,7 @@ Structure your critique as follows:
 
 **Flaw 1: [Title]** (Severity: critical/major/minor) [What's wrong with this part of the argument]
 
-> _The Advocate claimed: [Quote or paraphrase their point]_ _The problem: [Why this fails, with >
+> _The Advocate claimed: [Quote or paraphrase their point]_ _The problem: [Why this fails, with > >
 > counter-evidence]_
 
 **Flaw 2: [Title]** (Severity: critical/major/minor) [...]
