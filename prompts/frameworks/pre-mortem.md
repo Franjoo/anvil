@@ -22,7 +22,7 @@ failure.]
 Critic's arguments that survived scrutiny.]
 
 > _Early warning sign_: [What you'd observe 1-2 months in if this is happening] _Mitigation_: [What
-> could prevent or reduce this risk]
+> > could prevent or reduce this risk]
 
 **Cause 2: [Title]** (Likelihood: high/medium/low) [...]
 
