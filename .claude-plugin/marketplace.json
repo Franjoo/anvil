@@ -10,9 +10,12 @@
   "plugins": [
     {
       "name": "anvil",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "mulkatz/anvil"
+      },
       "description": "Adversarial thinking through structured debates. Stress-test ideas by rotating through Advocate, Critic, and Synthesizer phases with configurable debate modes.",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "author": {
         "name": "Franz",
         "email": "franz@franz.cx"
@@ -21,6 +24,23 @@
       "repository": "https://github.com/mulkatz/anvil",
       "license": "MIT",
       "keywords": ["adversarial", "debate", "thinking", "analysis", "decision-making"]
+    },
+    {
+      "name": "spark",
+      "source": {
+        "source": "github",
+        "repo": "mulkatz/spark"
+      },
+      "description": "Collaborative ideation through multi-persona brainstorming. Generate surprising ideas by rotating AI personas through Seed, Cross-Pollinate, and Synthesize phases.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Franz",
+        "email": "franz@franz.cx"
+      },
+      "homepage": "https://github.com/mulkatz/spark",
+      "repository": "https://github.com/mulkatz/spark",
+      "license": "MIT",
+      "keywords": ["ideation", "brainstorming", "personas", "creativity", "innovation"]
     }
   ]
 }
