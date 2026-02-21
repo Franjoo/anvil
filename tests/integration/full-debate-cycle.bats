@@ -22,7 +22,7 @@ run_hook_step() {
 
 @test "full 1-round debate: setup → advocate → critic → synthesizer → result" {
   # Setup
-  run_setup "Should we use Rust?" --rounds 1
+  run_setup "Should we use Rust?" --rounds 1 --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   # Verify initial state
   assert_state_exists
@@ -47,7 +47,7 @@ run_hook_step() {
 }
 
 @test "full 2-round debate: advocate/critic cycle repeats" {
-  run_setup "Monolith vs microservices?" --rounds 2
+  run_setup "Monolith vs microservices?" --rounds 2 --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   # Round 1: advocate → critic
   run_hook_step "Advocate R1: Microservices scale."
@@ -72,7 +72,7 @@ run_hook_step() {
 }
 
 @test "full stakeholder simulation: 3 stakeholders → synthesizer" {
-  run_setup "Should we adopt Kubernetes?" --mode stakeholders --stakeholders "Eng,Product,Ops"
+  run_setup "Should we adopt Kubernetes?" --mode stakeholders --stakeholders "Eng,Product,Ops" --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   assert_frontmatter "phase" "stakeholder"
   assert_frontmatter "max_rounds" "3"
@@ -98,7 +98,7 @@ run_hook_step() {
 }
 
 @test "full 3-persona rotation: persona1 → persona2 → persona3 → synthesizer" {
-  run_setup "GraphQL vs REST?" --persona "frontend dev" --persona "backend dev" --persona "devops"
+  run_setup "GraphQL vs REST?" --persona "frontend dev" --persona "backend dev" --persona "devops" --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   assert_frontmatter "phase" "persona"
   assert_frontmatter "max_rounds" "3"
@@ -124,7 +124,7 @@ run_hook_step() {
 }
 
 @test "early completion: anvil-complete in round 1 skips to synthesis" {
-  run_setup "Test question" --rounds 3
+  run_setup "Test question" --rounds 3 --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   # Advocate tries to end early
   run_hook_step "This is clear enough <anvil-complete/>"
@@ -151,7 +151,7 @@ run_hook_step() {
 }
 
 @test "debate with framework: result file exists" {
-  run_setup "New API design" --rounds 1 --framework adr
+  run_setup "New API design" --rounds 1 --framework adr --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   run_hook_step "Advocate: REST is the way."
   run_hook_step "Critic: GraphQL offers more."
@@ -162,7 +162,7 @@ run_hook_step() {
 }
 
 @test "full interactive mode cycle: pause → steer → synthesize" {
-  run_setup "Should we use serverless?" --rounds 2 --interactive
+  run_setup "Should we use serverless?" --rounds 2 --interactive --output "${TEST_DIR}/.claude/anvil-result.local.md"
 
   # Round 1: advocate → critic → interactive-pause
   run_hook_step "Advocate R1: Serverless reduces ops."

@@ -62,9 +62,10 @@ run_setup() {
   assert_output --partial "Output:    /tmp/report.html"
 }
 
-@test "output path not shown when not set" {
+@test "output path always shown in banner" {
   run_setup "question"
-  refute_output --partial "Output:"
+  assert_output --partial "Output:"
+  assert_output --partial "Desktop/anvil-"
 }
 
 # --- Phase indication ---

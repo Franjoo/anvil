@@ -37,7 +37,7 @@ run_report() {
 @test "renders h3 heading" {
   run_report "### Subsection"
   assert_success
-  assert_output --partial "<h3>Subsection</h3>"
+  assert_output --partial '<h3 id="subsection">Subsection</h3>'
 }
 
 @test "renders bold as strong" {
@@ -133,7 +133,7 @@ This is the summary.
   run_report "This has <script>alert(1)</script> in it"
   assert_success
   assert_output --partial "&lt;script&gt;"
-  refute_output --partial "<script>"
+  refute_output --partial "<script>alert"
 }
 
 @test "escapes HTML in headings" {

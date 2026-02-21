@@ -67,7 +67,7 @@ claude --plugin-dir ./anvil
 | `--interactive` | off | Pause between rounds for user steering |
 | `--stakeholders` | — | Custom stakeholder list (comma-separated) |
 | `--persona` | — | Named persona (repeatable, min 2). Preset or free-text |
-| `--output` | `.claude/anvil-result.local.md` | Custom output path. Use `.html` extension for self-contained HTML report |
+| `--output` | `~/Desktop/anvil-{date}-{slug}.html` | Custom output path. Use `.html` extension for self-contained HTML report |
 
 ### Check status / cancel
 
@@ -187,9 +187,13 @@ With 3+ personas, each gets their own round (rotation mode):
 
 ### Report Output & HTML Export
 
-Results include an **Executive Summary** (the synthesis) and a full **Debate Record** (all rounds). By default, saved to `.claude/anvil-result.local.md`.
+Results include an **Executive Summary** (the synthesis) and a full **Debate Record** (all rounds). By default, reports are saved as auto-named HTML files on your Desktop:
 
-Use `--output` to customize the path:
+```
+~/Desktop/anvil-2026-02-20-should-we-use-microservices.html
+```
+
+The filename is generated from the date and question (kebab-cased, first ~50 chars). Use `--output` to override:
 
 ```
 /anvil:anvil "Should we adopt GraphQL?" --output ~/reports/graphql-analysis.md
@@ -257,7 +261,7 @@ Anvil uses Claude Code's [stop hook](https://docs.anthropic.com/en/docs/claude-c
   |   +- Stop hook fires -> writes result -> allows exit
   |
   +- Result saved (Executive Summary + Debate Record)
-  |   Default: .claude/anvil-result.local.md
+  |   Default: ~/Desktop/anvil-{date}-{slug}.html
   |   Custom: --output path (HTML if .html extension)
 ```
 

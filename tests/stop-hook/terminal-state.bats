@@ -155,8 +155,8 @@ load "../helpers/assertions"
   grep -qF "Custom path synthesis" "$custom_path"
 }
 
-@test "default path used when output not set" {
-  create_state_file phase="synthesizer" round="2" max_rounds="2"
+@test "fallback path used when output is empty in state" {
+  create_state_file phase="synthesizer" round="2" max_rounds="2" output=""
   setup_hook_input "Default path synthesis"
   run_stop_hook
   assert_success

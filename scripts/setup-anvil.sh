@@ -493,6 +493,13 @@ else
   INITIAL_PHASE="advocate"
 fi
 
+# Generate default output path if not specified
+if [[ -z "$OUTPUT" ]]; then
+  slug=$(printf '%s' "$QUESTION" | LC_ALL=C tr -dc 'A-Za-z0-9 ' | head -c 50 | tr '[:upper:]' '[:lower:]' | tr -s ' ' '-' | sed 's/^-//; s/-$//')
+  slug="${slug:-debate}"
+  OUTPUT="$HOME/Desktop/anvil-$(date +%Y-%m-%d)-${slug}.html"
+fi
+
 # Create state file
 cat > "$ANVIL_STATE_FILE" <<EOF
 ---
@@ -599,9 +606,7 @@ fi
 if [[ -n "$FOLLOW_UP" ]]; then
   echo "  Follow-up: $FOLLOW_UP"
 fi
-if [[ -n "$OUTPUT" ]]; then
-  echo "  Output:    $OUTPUT"
-fi
+echo "  Output:    $OUTPUT"
 if [[ -n "$VERSUS_A" ]]; then
   echo "  Versus:    $VERSUS_A vs $VERSUS_B"
 fi

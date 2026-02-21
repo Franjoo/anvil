@@ -152,10 +152,12 @@ run_setup() {
   assert_frontmatter "interactive" "true"
 }
 
-@test "default output is empty" {
+@test "default output is Desktop HTML path" {
   run_setup "question"
   assert_success
-  assert_frontmatter "output" ""
+  local output_val
+  output_val=$(get_frontmatter "output" "$(state_file)")
+  [[ "$output_val" == */Desktop/anvil-*-question.html ]]
 }
 
 @test "--output stores path" {
