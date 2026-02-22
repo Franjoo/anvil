@@ -11,6 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/mulkatz/anvil?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/Claude_Code-plugin-blueviolet?style=flat-square" alt="Claude Code Plugin">
   <img src="https://img.shields.io/badge/no_build-shell_%2B_markdown-green?style=flat-square" alt="No Build Step">
+  <img src="https://img.shields.io/badge/status-in_active_development-brightgreen?style=flat-square" alt="In Active Development">
 </p>
 
 Anvil is a **thinking tool** that forces rigorous examination of propositions by rotating through
